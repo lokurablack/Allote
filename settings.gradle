@@ -1,0 +1,23 @@
+// settings.gradle.kts
+
+// Aquí le decimos a Gradle dónde buscar los plugins que necesita
+pluginManagement {
+    repositories {
+        google() // Repositorio de Google
+        mavenCentral() // Repositorio central de Maven
+        gradlePluginPortal() // Portal de plugins de Gradle
+    }
+}
+
+// Aquí le decimos a Gradle dónde buscar las dependencias (las librerías)
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Aquí defines el nombre de tu app y los módulos que incluye
+rootProject.name = "Al Lote"
+include(":app")
