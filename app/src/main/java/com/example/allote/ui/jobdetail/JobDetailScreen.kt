@@ -141,49 +141,198 @@ fun JobDetailScreen(
 
 @Composable
 private fun HelpDialog(onDismiss: () -> Unit) {
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Ayuda: Detalles del Trabajo") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Esta pantalla centraliza toda la información y acciones para este trabajo.")
-                Text("• Información General: Revisa los detalles del cliente, fechas y estado del trabajo.")
-                Text("• Menú de Acciones: Es el centro de control. Desde aquí puedes acceder a:")
-                Column(modifier = Modifier.padding(start = 8.dp)) {
-                    Text("- Costos: Para facturar el trabajo.")
-                    Text("- Recetas: Para crear la mezcla de productos.")
-                    Text("- Lotes: Para dividir el trabajo y registrar la superficie real tratada.")
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column {
+                // Header con gradiente
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            ),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.HelpOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Ayuda: Detalles del Trabajo",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .background(
+                                    Color.White.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Cerrar",
+                                tint = Color.White
+                            )
+                        }
+                    }
                 }
-                Text("• Pronóstico: Consulta el clima para planificar la aplicación.", style = MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Entendido")
+                
+                // Contenido
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    HelpSection(
+                        icon = Icons.Default.Info,
+                        title = "Información General",
+                        description = "Revisa los detalles del cliente, fechas y estado del trabajo.",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    HelpSection(
+                        icon = Icons.Default.TouchApp,
+                        title = "Menú de Acciones",
+                        description = "Centro de control con acceso a todas las funcionalidades:",
+                        color = MaterialTheme.colorScheme.secondary,
+                        items = listOf(
+                            "Costos: Para facturar el trabajo",
+                            "Recetas: Para crear la mezcla de productos",
+                            "Lotes: Para dividir el trabajo y registrar la superficie real tratada",
+                            "Ubicación: Para ver y editar la ubicación",
+                            "Imágenes: Para gestionar fotos del trabajo"
+                        )
+                    )
+                    
+                    HelpSection(
+                        icon = Icons.Default.WbSunny,
+                        title = "Pronóstico Climático",
+                        description = "Consulta el clima para planificar la aplicación de manera óptima.",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
 private fun JobSummaryCard(job: Job) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        elevation = CardDefaults.cardElevation(8.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Person, contentDescription = "Cliente", modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = job.clientName, style = MaterialTheme.typography.titleLarge)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                InfoColumn(icon = Icons.Default.Map, label = "Hectáreas", value = job.surface.toString(), modifier = Modifier.weight(1f))
-                InfoColumn(icon = Icons.Default.Timelapse, label = "Estado", value = job.status, modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.tertiary
+                        )
+                    )
+                )
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                // Header con cliente
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.2f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Cliente",
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Cliente",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = job.clientName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Información principal
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    EnhancedInfoColumn(
+                        icon = Icons.Default.Map,
+                        label = "Hectáreas",
+                        value = job.surface.toString()
+                    )
+                    
+                    // Divider vertical
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(60.dp)
+                            .background(Color.White.copy(alpha = 0.3f))
+                    )
+                    
+                    EnhancedInfoColumn(
+                        icon = Icons.Default.Timelapse,
+                        label = "Estado",
+                        value = job.status,
+                        statusColor = when (job.status.lowercase()) {
+                            "completado" -> Color(0xFF4CAF50)
+                            "pendiente" -> Color(0xFFFF9800)
+                            "en progreso" -> Color(0xFF2196F3)
+                            else -> Color.White
+                        }
+                    )
+                }
             }
         }
     }
@@ -193,14 +342,56 @@ private fun JobSummaryCard(job: Job) {
 private fun JobDetailsCard(job: Job) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            InfoRow(icon = Icons.Default.CalendarToday, label = "Creado", value = DateFormatter.formatDate(job.date))
-            InfoRow(icon = Icons.Default.PlayArrow, label = "Inicio real", value = formatDateOrDefault(job.startDate))
-            InfoRow(icon = Icons.Default.Stop, label = "Finalizado", value = formatDateOrDefault(job.endDate?: 0L))
-            InfoRow(icon = Icons.Default.MonetizationOn, label = "Facturación", value = job.billingStatus)
-            InfoRow(icon = Icons.AutoMirrored.Filled.Notes, label = "Notas", value = job.notes?.takeIf { it.isNotBlank() } ?: "N/A")
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Detalles del Trabajo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            EnhancedInfoRow(
+                icon = Icons.Default.CalendarToday,
+                label = "Creado",
+                value = DateFormatter.formatDate(job.date),
+                iconColor = MaterialTheme.colorScheme.secondary
+            )
+            EnhancedInfoRow(
+                icon = Icons.Default.PlayArrow,
+                label = "Inicio real",
+                value = formatDateOrDefault(job.startDate),
+                iconColor = Color(0xFF4CAF50)
+            )
+            EnhancedInfoRow(
+                icon = Icons.Default.Stop,
+                label = "Finalizado",
+                value = formatDateOrDefault(job.endDate ?: 0L),
+                iconColor = Color(0xFFE57373)
+            )
+            EnhancedInfoRow(
+                icon = Icons.Default.MonetizationOn,
+                label = "Facturación",
+                value = job.billingStatus,
+                iconColor = Color(0xFFFFB74D),
+                valueColor = when (job.billingStatus.lowercase()) {
+                    "facturado" -> Color(0xFF4CAF50)
+                    "pendiente" -> Color(0xFFFF9800)
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+            )
+            EnhancedInfoRow(
+                icon = Icons.AutoMirrored.Filled.Notes,
+                label = "Notas",
+                value = job.notes?.takeIf { it.isNotBlank() } ?: "Sin notas",
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                isMultiline = true
+            )
         }
     }
 }
@@ -208,42 +399,126 @@ private fun JobDetailsCard(job: Job) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun JobActionMenu(jobId: Int, onNavigate: (String) -> Unit, onLocationButtonClick: () -> Unit) {
-    Column {
-        Text("Acciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                ListItem(
-                    headlineContent = { Text("Costos") },
-                    leadingContent = { Icon(Icons.Filled.Calculate, contentDescription = "Costos") },
-                    modifier = Modifier.clickable { onNavigate(AppDestinations.ADMINISTRACION_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Acciones Disponibles",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        // Grid de acciones con cards individuales
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Filled.Calculate,
+                    title = "Costos",
+                    subtitle = "Administrar",
+                    color = Color(0xFF4CAF50),
+                    onClick = { onNavigate(AppDestinations.ADMINISTRACION_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
-                ListItem(
-                    headlineContent = { Text("Parámetros utilizados") },
-                    leadingContent = { Icon(Icons.Default.Tune, contentDescription = "Parámetros") },
-                    modifier = Modifier.clickable { onNavigate(AppDestinations.PARAMETROS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Tune,
+                    title = "Parámetros",
+                    subtitle = "Configurar",
+                    color = Color(0xFF2196F3),
+                    onClick = { onNavigate(AppDestinations.PARAMETROS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
-                ListItem(
-                    headlineContent = { Text("Recetas") },
-                    leadingContent = { Icon(Icons.Default.Science, contentDescription = "Recetas") },
-                    modifier = Modifier.clickable { onNavigate(AppDestinations.RECETAS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Science,
+                    title = "Recetas",
+                    subtitle = "Mezclas",
+                    color = Color(0xFF9C27B0),
+                    onClick = { onNavigate(AppDestinations.RECETAS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
-                ListItem(
-                    headlineContent = { Text("Ubicación") },
-                    leadingContent = { Icon(Icons.Default.PinDrop, contentDescription = "Ubicación") },
-                    modifier = Modifier.clickable(onClick = onLocationButtonClick)
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.PinDrop,
+                    title = "Ubicación",
+                    subtitle = "Ver mapa",
+                    color = Color(0xFFFF5722),
+                    onClick = onLocationButtonClick
                 )
-                ListItem(
-                    headlineContent = { Text("Imágenes del Trabajo") },
-                    leadingContent = { Icon(Icons.Default.Image, contentDescription = "Imágenes") },
-                    modifier = Modifier.clickable { onNavigate(AppDestinations.IMAGES_JOB_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Image,
+                    title = "Imágenes",
+                    subtitle = "Galería",
+                    color = Color(0xFFFF9800),
+                    onClick = { onNavigate(AppDestinations.IMAGES_JOB_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
-                ListItem(
-                    headlineContent = { Text("Gestión de Lotes") },
-                    leadingContent = { Icon(Icons.Default.Grain, contentDescription = "Lotes") },
-                    modifier = Modifier.clickable { onNavigate(AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Grain,
+                    title = "Lotes",
+                    subtitle = "Gestionar",
+                    color = Color(0xFF795548),
+                    onClick = { onNavigate(AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun EnhancedInfoColumn(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    statusColor: Color = Color.White
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    Color.White.copy(alpha = 0.2f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(20.dp),
+                tint = Color.White
+            )
+        }
+        
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = statusColor
+        )
+        
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White.copy(alpha = 0.8f),
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -258,12 +533,199 @@ private fun InfoColumn(icon: ImageVector, label: String, value: String, modifier
 }
 
 @Composable
+private fun EnhancedInfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    isMultiline: Boolean = false
+) {
+    Row(
+        verticalAlignment = if (isMultiline) Alignment.Top else Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    iconColor.copy(alpha = 0.1f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(20.dp),
+                tint = iconColor
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = valueColor,
+                maxLines = if (isMultiline) Int.MAX_VALUE else 1
+            )
+        }
+    }
+}
+
+@Composable
 private fun InfoRow(icon: ImageVector, label: String, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(16.dp))
         Text(text = "$label:", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
         Text(text = value)
+    }
+}
+
+@Composable
+private fun ActionCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .height(90.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.8f),
+                            color
+                        )
+                    )
+                )
+                .padding(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White
+                )
+                
+                Spacer(modifier = Modifier.weight(1f))
+                
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1
+                )
+                
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpSection(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    color: Color,
+    items: List<String> = emptyList()
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color.copy(alpha = 0.1f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = color
+                )
+            }
+            
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+        
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        if (items.isNotEmpty()) {
+            Column(
+                modifier = Modifier.padding(start = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items.forEach { item ->
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    color.copy(alpha = 0.6f),
+                                    CircleShape
+                                )
+                                .padding(top = 6.dp)
+                        )
+                        Text(
+                            text = item,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -414,45 +876,105 @@ fun HourlyForecastDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(8.dp)
+                .fillMaxHeight(0.9f)
+                .padding(horizontal = 12.dp),
+            shape = RoundedCornerShape(28.dp),
+            elevation = CardDefaults.cardElevation(16.dp)
         ) {
-            Scaffold(
-                containerColor = MaterialTheme.colorScheme.surface,
-                topBar = {
-                    TopAppBar(
-                        title = { Text(text = "Pronóstico Horario", fontSize = 18.sp) },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                        actions = {
-                            IconButton(onClick = onDismiss) {
-                                Icon(Icons.Default.Close, "Cerrar")
+            Column {
+                // Header con gradiente
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            ),
+                            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Pronóstico Horario",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = date,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                        
+                        Column(
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .background(
+                                        Color.White.copy(alpha = 0.2f),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Cerrar",
+                                    tint = Color.White
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Resumen del día
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = WeatherIconMapper.getIcon(dayForecast.weatherType),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = Color.White
+                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "${dayForecast.maxTemp.roundToInt()}°/${dayForecast.minTemp.roundToInt()}°",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "${dayForecast.precipitationSum.roundToInt()} mm",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White.copy(alpha = 0.8f)
+                                    )
+                                }
                             }
                         }
-                    )
-                }
-            ) { padding ->
-                LazyColumn(
-                    modifier = Modifier.padding(padding),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    item {
-                        Text(
-                            text = date,
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
                     }
+                }
+                
+                // Contenido principal
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     items(dayForecast.hourly) { weather ->
                         HourlyForecastItem(
                             weather = weather,
                             minTempOfDay = dayForecast.minTemp,
                             maxTempOfDay = dayForecast.maxTemp
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
                     }
                 }
@@ -470,46 +992,224 @@ private fun HourlyForecastItem(
     maxTempOfDay: Double
 ) {
     val time = remember(weather.time) { weather.time.substring(11, 16) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val isHighTemp = weather.temperature > (minTempOfDay + maxTempOfDay) / 2
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isHighTemp) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            else 
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f)
+        )
     ) {
-        // Columna de la izquierda con la hora y los detalles
-        Column(
-            modifier = Modifier.width(80.dp),
-            horizontalAlignment = Alignment.Start
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(time, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            HourlyDetail(
-                icon = Icons.Default.WaterDrop,
-                text = "${weather.precipitationProbability}%"
+            // Columna de tiempo
+            Column(
+                modifier = Modifier.width(60.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = time,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${weather.temperature.roundToInt()}°",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isHighTemp) 
+                        MaterialTheme.colorScheme.error
+                    else 
+                        MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            // Icono del clima
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        if (isHighTemp)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = WeatherIconMapper.getIcon(weather.weatherType),
+                    contentDescription = weather.weatherType.weatherDesc,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            // Información meteorológica
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Barra de temperatura mejorada
+                EnhancedTemperatureBar(
+                    minTemp = minTempOfDay,
+                    maxTemp = maxTempOfDay,
+                    currentTemp = weather.temperature
+                )
+                
+                // Detalles en fila
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WeatherMetricChip(
+                        icon = Icons.Default.WaterDrop,
+                        value = "${weather.precipitationProbability}%",
+                        label = "Lluvia",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    WeatherMetricChip(
+                        icon = Icons.Default.Air,
+                        value = "${weather.windSpeed.roundToInt()}",
+                        label = "km/h",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    WeatherMetricChip(
+                        icon = Icons.Default.Opacity,
+                        value = "${weather.humidity}%",
+                        label = "Hum.",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EnhancedTemperatureBar(
+    minTemp: Double,
+    maxTemp: Double,
+    currentTemp: Double
+) {
+    val tempRange = (maxTemp - minTemp).toFloat().coerceAtLeast(1f)
+    val normalizedPosition = ((currentTemp - minTemp) / tempRange).toFloat().coerceIn(0f, 1f)
+    
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Etiquetas de temperatura
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${minTemp.roundToInt()}°",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            HourlyDetail(
-                icon = Icons.Default.Air,
-                text = "${weather.windSpeed.roundToInt()} km/h"
+            Text(
+                text = "${maxTemp.roundToInt()}°",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
-        // Gráfico en el centro
-        TemperatureBar(
-            modifier = Modifier.weight(1f),
-            minTemp = minTempOfDay,
-            maxTemp = maxTempOfDay,
-            currentTemp = weather.temperature
-        )
-
-        // Icono a la derecha
-        Icon(
-            imageVector = WeatherIconMapper.getIcon(weather.weatherType),
-            contentDescription = weather.weatherType.weatherDesc,
+        
+        // Barra de temperatura con gradiente
+        Box(
             modifier = Modifier
-                .size(36.dp)
-                .padding(start = 16.dp),
-            tint = MaterialTheme.colorScheme.primary
+                .fillMaxWidth()
+                .height(8.dp)
+        ) {
+            // Barra de fondo con gradiente
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF64B5F6), // Azul frío
+                                Color(0xFF81C784), // Verde medio
+                                Color(0xFFFFB74D), // Naranja cálido
+                                Color(0xFFE57373)  // Rojo caliente
+                            )
+                        ),
+                        RoundedCornerShape(4.dp)
+                    )
+            )
+            
+            // Indicador de temperatura actual
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(normalizedPosition)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(
+                            Color.White,
+                            CircleShape
+                        )
+                        .border(
+                            2.dp,
+                            MaterialTheme.colorScheme.primary,
+                            CircleShape
+                        )
+                        .align(Alignment.CenterEnd)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherMetricChip(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    color: Color
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .background(
+                    color.copy(alpha = 0.1f),
+                    RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 6.dp, vertical = 3.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = color
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = color
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
     }
 }
@@ -548,7 +1248,7 @@ fun TemperatureBar(
                 .background(trackColor, CircleShape)
                 .constrainAs(barRef) {
                     top.linkTo(textRef.bottom, margin = 4.dp)
-                    bottom.linkTo(parent.bottom) // Anclar también abajo para centrar verticalmente el layout
+                    bottom.linkTo(parent.bottom)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 }
