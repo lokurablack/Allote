@@ -5,68 +5,36 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.allote.data.Job
 import com.example.allote.ui.components.EmptyState
 import com.example.allote.ui.components.JobDialogCompose
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
+
+// --- Main Screen Composable ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +61,7 @@ fun JobsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Trabajos") },
+                title = { Text("Gestión de Trabajos") },
                 actions = {
                     IconButton(onClick = { showHelpDialog = true }) {
                         Icon(Icons.Outlined.HelpOutline, contentDescription = "Ayuda")
@@ -103,16 +71,6 @@ fun JobsScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            OutlinedButton(
-                onClick = { showFilterDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Default.FilterList, contentDescription = "Filtros", modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Mostrar Filtros")
-            }
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else if (uiState.allJobs.isEmpty()) {
@@ -124,9 +82,17 @@ fun JobsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    item {
+                        JobsHeader(
+                            totalJobs = uiState.allJobs.size,
+                            pendingHectares = uiState.pendingHectares,
+                            onFilterClick = { showFilterDialog = true }
+                        )
+                    }
+
                     if (uiState.filteredJobs.isEmpty()) {
                         item {
                             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -136,25 +102,26 @@ fun JobsScreen(
                     } else {
                         if (uiState.pendingJobs.isNotEmpty()) {
                             item {
-                                Text("Pendientes (${"%.2f".format(uiState.pendingHectares)} ha)",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                )
+                                SectionTitle("Pendientes", uiState.pendingJobs.size)
                             }
                             items(uiState.pendingJobs, key = { it.id }) { job ->
-                                JobListItem(job = job, onClick = { onJobClick(job.id) }, onOptionsClick = { showJobOptionsDialog = job })
+                                JobListItem(
+                                    job = job,
+                                    onClick = { onJobClick(job.id) },
+                                    onOptionsClick = { showJobOptionsDialog = job }
+                                )
                             }
                         }
                         if (uiState.finishedJobs.isNotEmpty()) {
                             item {
-                                Spacer(Modifier.height(8.dp))
-                                Text("Finalizados (${"%.2f".format(uiState.finishedHectares)} ha)",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                )
+                                SectionTitle("Finalizados", uiState.finishedJobs.size)
                             }
                             items(uiState.finishedJobs, key = { it.id }) { job ->
-                                JobListItem(job = job, onClick = { onJobClick(job.id) }, onOptionsClick = { showJobOptionsDialog = job })
+                                JobListItem(
+                                    job = job,
+                                    onClick = { onJobClick(job.id) },
+                                    onOptionsClick = { showJobOptionsDialog = job }
+                                )
                             }
                         }
                     }
@@ -190,8 +157,7 @@ fun JobsScreen(
         )
     }
 
-    if (showJobOptionsDialog != null) {
-        val currentJob = showJobOptionsDialog!!
+    showJobOptionsDialog?.let { currentJob ->
         JobOptionsDialog(
             job = currentJob,
             onDismiss = { showJobOptionsDialog = null },
@@ -217,45 +183,257 @@ fun JobsScreen(
     }
 }
 
+// --- Reusable Styled Components ---
+
 @Composable
-private fun HelpDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ayuda: Gestión de Trabajos") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Esta pantalla muestra una lista de todos los trabajos, separados en 'Pendientes' y 'Finalizados'.")
-                Text("• Filtrar: Usa el botón 'Mostrar Filtros' para buscar trabajos por cliente, estado, tipo de aplicación, facturación o rango de fechas.")
-                Text("• Ver Detalles: Pulsa sobre un trabajo para ver su panel de detalles, que incluye el pronóstico del tiempo y el menú de acciones.")
-                Text("• Opciones: Pulsa el ícono de tres puntos en un trabajo para acceder a acciones rápidas como marcarlo como finalizado, editarlo, eliminarlo o gestionar su facturación.", style = MaterialTheme.typography.bodySmall)
+private fun JobsHeader(
+    totalJobs: Int,
+    pendingHectares: Double,
+    onFilterClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+                            )
+                        )
+                    )
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Work,
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Resumen de Trabajos",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "$totalJobs trabajos registrados",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Entendido")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "%.2f".format(pendingHectares),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "Hectáreas Pendientes",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Button(onClick = onFilterClick) {
+                    Icon(Icons.Default.FilterList, contentDescription = "Filtros", modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Filtrar")
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
-fun FilterDialog(
+private fun SectionTitle(title: String, count: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun JobListItem(job: Job, onClick: () -> Unit, onOptionsClick: () -> Unit) {
+    val defaultColor = MaterialTheme.colorScheme.outline
+    val (jobTypeColor, jobTypeIcon) = remember(job.tipoAplicacion, defaultColor) {
+        when (job.tipoAplicacion?.lowercase()) {
+            "aplicacion liquida" -> Pair(Color(0xFF0288D1), Icons.Default.WaterDrop)
+            "aplicacion solida" -> Pair(Color(0xFFFBC02D), Icons.Default.Grain)
+            "aplicacion mixta" -> Pair(Color(0xFFE64A19), Icons.Default.Science)
+            "aplicaciones varias" -> Pair(Color(0xFF388E3C), Icons.Default.Build)
+            else -> Pair(defaultColor, Icons.Default.HelpOutline)
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(jobTypeColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = jobTypeIcon,
+                    contentDescription = job.tipoAplicacion,
+                    tint = jobTypeColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = job.clientName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${job.surface} ha - ${job.tipoAplicacion}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (!job.description.isNullOrBlank()) {
+                    Text(
+                        text = job.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            }
+            IconButton(onClick = onOptionsClick) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Opciones")
+            }
+        }
+    }
+}
+
+// --- Dialogs ---
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterDialog(
     uiState: JobsUiState,
     onDismiss: () -> Unit,
     onFilterChange: (String?, String?, String?, String?) -> Unit,
     onDateChange: (Long?, Long?) -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text("Filtros", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            ),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.FilterList, contentDescription = null, tint = Color.White)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = "Filtros de Búsqueda",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
+                        }
+                    }
+                }
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     FilterDropdown("Cliente", listOf("") + uiState.allClients.map { "${it.name} ${it.lastname}" }, uiState.selectedClient, { onFilterChange(it, null, null, null) })
                     FilterDropdown("Estado", listOf("", "Pendiente", "Finalizado"), uiState.selectedStatus, { onFilterChange(null, it, null, null) })
                     FilterDropdown("Aplicación", listOf("", "Aplicacion liquida", "Aplicacion solida", "Aplicacion mixta", "Aplicaciones varias"), uiState.selectedType, { onFilterChange(null, null, it, null) })
@@ -265,14 +443,105 @@ fun FilterDialog(
                         DateSelector("Hasta", uiState.toDate, { onDateChange(uiState.fromDate, it) }, Modifier.weight(1f))
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(24.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Ayuda: Gestión de Trabajos", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Esta pantalla muestra una lista de todos los trabajos, separados en 'Pendientes' y 'Finalizados'.")
+                    Text("• Filtrar: Usa el botón 'Mostrar Filtros' para buscar trabajos por cliente, estado, tipo de aplicación, facturación o rango de fechas.")
+                    Text("• Ver Detalles: Pulsa sobre un trabajo para ver su panel de detalles, que incluye el pronóstico del tiempo y el menú de acciones.")
+                    Text("• Opciones: Pulsa el ícono de tres puntos en un trabajo para acceder a acciones rápidas como marcarlo como finalizado, editarlo, eliminarlo o gestionar su facturación.", style = MaterialTheme.typography.bodySmall)
+                }
                 Spacer(Modifier.height(24.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cerrar") }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Entendido")
                 }
             }
         }
     }
 }
+
+@Composable
+private fun JobOptionsDialog(
+    job: Job,
+    onDismiss: () -> Unit,
+    onMarkAsFinished: (Job) -> Unit,
+    onEdit: (Job) -> Unit,
+    onDelete: (Job) -> Unit,
+    onBilling: (Job) -> Unit,
+    onRecipes: (Job) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(24.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Opciones: ${job.clientName}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 2
+                )
+                Spacer(Modifier.height(20.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OptionButton(text = "Marcar como Finalizado", icon = Icons.Default.CheckCircle, onClick = { onMarkAsFinished(job) })
+                    OptionButton(text = "Editar Trabajo", icon = Icons.Default.Edit, onClick = { onEdit(job) })
+                    OptionButton(text = "Gestionar Facturación", icon = Icons.Default.MonetizationOn, onClick = { onBilling(job) })
+                    OptionButton(text = "Ver Recetas", icon = Icons.Default.Science, onClick = { onRecipes(job) })
+                    Spacer(Modifier.height(8.dp))
+                    OptionButton(
+                        text = "Eliminar Trabajo",
+                        icon = Icons.Default.Delete,
+                        onClick = { onDelete(job) },
+                        isDestructive = true
+                    )
+                }
+                Spacer(Modifier.height(20.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cerrar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
+) {
+    val colors = if (isDestructive) {
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    } else {
+        ButtonDefaults.outlinedButtonColors()
+    }
+    val border = if (isDestructive) null else ButtonDefaults.outlinedButtonBorder
+
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = colors,
+        border = border
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text)
+    }
+}
+
+// --- Utility Functions and Composables ---
 
 private fun showDatePickerToFinishJob(context: Context, job: Job, onResult: (Job) -> Unit) {
     val cal = Calendar.getInstance()
@@ -292,111 +561,24 @@ private fun showBillingDialog(context: Context, job: Job, onResult: (Job) -> Uni
         .show()
 }
 
-@Composable
-fun JobOptionsDialog(
-    job: Job,
-    onDismiss: () -> Unit,
-    onMarkAsFinished: (Job) -> Unit,
-    onEdit: (Job) -> Unit,
-    onDelete: (Job) -> Unit,
-    onBilling: (Job) -> Unit,
-    onRecipes: (Job) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Opciones para: ${job.clientName}") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
-                Button(onClick = { onMarkAsFinished(job) }, modifier = Modifier.fillMaxWidth()) { Text("Marcar finalizado") }
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { onEdit(job) }, modifier = Modifier.fillMaxWidth()) { Text("Editar") }
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { onBilling(job) }, modifier = Modifier.fillMaxWidth()) { Text("Facturación") }
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { onRecipes(job) }, modifier = Modifier.fillMaxWidth()) { Text("Recetas") }
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = { onDelete(job) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Eliminar")
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
-            }
-        }
-    )
-}
-
-@Composable
-fun JobListItem(job: Job, onClick: () -> Unit, onOptionsClick: () -> Unit) {
-    val defaultColor = MaterialTheme.colorScheme.outline
-    val jobTypeColor = remember(job.tipoAplicacion, defaultColor) {
-        when (job.tipoAplicacion?.lowercase()) {
-            "aplicacion liquida" -> Color(0xFF0288D1)
-            "aplicacion solida" -> Color(0xFFFBC02D)
-            "aplicacion mixta" -> Color(0xFFE64A19)
-            "aplicaciones varias" -> Color(0xFF388E3C)
-            else -> defaultColor
-        }
-    }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Row(modifier = Modifier, verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .height(80.dp)
-                    .background(jobTypeColor, shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(text = job.clientName, style = MaterialTheme.typography.titleMedium)
-                Text(text = "${job.surface} has", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (!job.description.isNullOrBlank()) {
-                    Text(text = job.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                }
-            }
-            IconButton(onClick = onOptionsClick, modifier = Modifier.padding(end = 4.dp)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "Opciones")
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilterDropdown(label: String, options: List<String>, selected: String, onSelected: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun FilterDropdown(label: String, options: List<String>, selected: String, onSelected: (String) -> Unit, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded, { expanded = it }, modifier) {
         OutlinedTextField(
             value = if (selected.isEmpty()) "Todos" else selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-            textStyle = MaterialTheme.typography.bodyMedium,
+            label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth(),
-            singleLine = true
+            shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(expanded, { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(if (option.isEmpty()) "Todos" else option, style = MaterialTheme.typography.bodyMedium) },
+                    text = { Text(if (option.isEmpty()) "Todos" else option) },
                     onClick = { onSelected(option); expanded = false }
                 )
             }
@@ -405,19 +587,19 @@ fun FilterDropdown(label: String, options: List<String>, selected: String, onSel
 }
 
 @Composable
-fun DateSelector(label: String, value: Long?, onDateSelected: (Long?) -> Unit, modifier: Modifier = Modifier) {
+private fun DateSelector(label: String, value: Long?, onDateSelected: (Long?) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val calendar = remember { Calendar.getInstance() }
     val displayText = value?.let { dateFormat.format(Date(it)) } ?: ""
 
     Box(modifier = modifier) {
         OutlinedTextField(
             value = displayText,
             onValueChange = {},
-            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+            label = { Text(label) },
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
             trailingIcon = {
                 if (value != null) {
                     IconButton(onClick = { onDateSelected(null) }) { Icon(Icons.Default.Clear, contentDescription = "Limpiar fecha") }
@@ -446,5 +628,3 @@ fun DateSelector(label: String, value: Long?, onDateSelected: (Long?) -> Unit, m
         )
     }
 }
-
-

@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "user",
+    "content": "openai migrate"
+  },
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "user",
+    "content": "app\\src\\main\\java\\com\\example\\allote\\ui\\jobdetail\\jobdetailscreen.kt"
+  },
+  {
+    "role": "assistant",
+    "content": "¡Hola! Veo que mencionas “openai migrate” y el archivo app/src/main/java/com/example/allote/ui/jobdetail/JobDetailScreen.kt. ¿Qué necesitas exactamente?\n\nPara poder ayudarte mejor, por favor comparte:\n- El contenido de JobDetailScreen.kt (o la parte relevante).\n- Dónde y cómo llamas a OpenAI hoy (¿Chat Completions, theokanning/openai-java, Retrofit/OkHttp directo?).\n- Qué tipo de migración quieres: ¿a la nueva Responses API, actualizar modelos, o resolver un error?\n\nNotas rápidas por si tu migración es a la Responses API:\n- Endpoint: pasar de /v1/chat/completions a /v1/responses.\n- Payload: usar “input” (texto o estructura multimodal) en lugar de “messages”.\n- Streaming: usar stream=true y consumir SSE; en Android puedes manejarlo con OkHttp (okhttp-sse).\n- Seguridad: no pongas la API key en el cliente; idealmente llama a tu propio backend y desde ahí a OpenAI.\n\nSi compartes el código y el objetivo (p. ej., “quiero reemplazar Chat Completions por Responses en esta pantalla”), te doy el diff concreto y los cambios en ViewModel/Repository para que JobDetailScreen solo observe el estado."
+  }
+]

@@ -5,17 +5,10 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Grass
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,6 +23,10 @@ import com.example.allote.data.Client
 import com.example.allote.data.Job
 import java.text.SimpleDateFormat
 import java.util.*
+
+private const val STATUS_PENDIENTE = "Pendiente"
+private const val STATUS_FINALIZADO = "Finalizado"
+private val TIPO_APLICACION_OPTIONS = listOf("Aplicacion liquida", "Aplicacion solida", "Aplicacion mixta", "Aplicaciones varias")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,11 +44,8 @@ fun JobDialogCompose(
     var description by remember(initialJob) { mutableStateOf(initialJob?.description ?: "") }
     var surface by remember(initialJob) { mutableStateOf(initialJob?.surface?.toString() ?: "") }
     var notes by remember(initialJob) { mutableStateOf(initialJob?.notes ?: "") }
-    var status by remember(initialJob) { mutableStateOf(initialJob?.status ?: "Pendiente") }
-
-    val tipoAplicacionOptions = listOf("Aplicacion liquida", "Aplicacion solida", "Aplicacion mixta", "Aplicaciones varias")
-    var selectedTipoAplicacion by remember(initialJob) { mutableStateOf(initialJob?.tipoAplicacion ?: tipoAplicacionOptions[0]) }
-
+    var status by remember(initialJob) { mutableStateOf(initialJob?.status ?: STATUS_PENDIENTE) }
+    var selectedTipoAplicacion by remember(initialJob) { mutableStateOf(initialJob?.tipoAplicacion ?: TIPO_APLICACION_OPTIONS[0]) }
     var realStartMillis by remember(initialJob) { mutableStateOf(initialJob?.startDate ?: 0L) }
 
     var clientError by remember { mutableStateOf(false) }
@@ -69,13 +63,51 @@ fun JobDialogCompose(
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
-                cal.set(year, month, dayOfMonth)
-                realStartMillis = cal.timeInMillis
+                val calendar = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                realStartMillis = calendar.timeInMillis
             },
             cal.get(Calendar.YEAR),
             cal.get(Calendar.MONTH),
             cal.get(Calendar.DAY_OF_MONTH)
         ).show()
+    }
+
+    fun validateAndSaveJob() {
+        clientError = selectedClient == null
+        surfaceError = (surface.toDoubleOrNull() ?: 0.0) <= 0
+
+        if (!isFormValid) {
+            Toast.makeText(context, "Por favor, corrige los errores", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val selectedClientVal = selectedClient!!
+        val formattedDate = initialJob?.date ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val finalDescription = description.trim().ifBlank { "Trabajo sin descripción" }
+        val finalNotes = notes.trim().ifBlank { null }
+
+        val jobToSave = initialJob?.copy(
+            clientId = selectedClientVal.id,
+            clientName = "${selectedClientVal.name} ${selectedClientVal.lastname}",
+            description = finalDescription,
+            notes = finalNotes,
+            status = status,
+            startDate = realStartMillis,
+            surface = surface.toDouble(),
+            tipoAplicacion = selectedTipoAplicacion
+        ) ?: Job(
+            clientId = selectedClientVal.id,
+            clientName = "${selectedClientVal.name} ${selectedClientVal.lastname}",
+            description = finalDescription,
+            date = formattedDate,
+            status = status,
+            startDate = realStartMillis,
+            surface = surface.toDouble(),
+            tipoAplicacion = selectedTipoAplicacion,
+            billingStatus = "No Facturado",
+            notes = finalNotes
+        )
+        onJobSaved(jobToSave)
     }
 
     Dialog(
@@ -95,55 +127,23 @@ fun JobDialogCompose(
                 ExtendedFloatingActionButton(
                     text = { Text("Guardar") },
                     icon = { Icon(Icons.Default.Save, null) },
-                    onClick = {
-                        clientError = selectedClient == null
-                        surfaceError = (surface.toDoubleOrNull() ?: 0.0) <= 0
-
-                        if (isFormValid) {
-                            val selectedClientVal = selectedClient!!
-                            val formattedDate = initialJob?.date ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-                            val finalDescription = description.trim().ifBlank { "Trabajo sin descripción" }
-
-                            val jobToSave = (initialJob?.copy(
-                                clientId = selectedClientVal.id,
-                                clientName = "${selectedClientVal.name} ${selectedClientVal.lastname}",
-                                description = finalDescription,
-                                notes = notes.trim().ifBlank { null },
-                                status = status,
-                                startDate = realStartMillis,
-                                surface = surface.toDouble(),
-                                tipoAplicacion = selectedTipoAplicacion
-                            ) ?: Job(
-                                clientId = selectedClientVal.id,
-                                clientName = "${selectedClientVal.name} ${selectedClientVal.lastname}",
-                                description = finalDescription,
-                                date = formattedDate,
-                                status = status,
-                                startDate = realStartMillis,
-                                surface = surface.toDouble(),
-                                tipoAplicacion = selectedTipoAplicacion,
-                                billingStatus = "No Facturado",
-                                notes = notes.trim().ifBlank { null }
-                            ))
-                            onJobSaved(jobToSave)
-                        } else {
-                            Toast.makeText(context, "Por favor, corrige los errores", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    onClick = { validateAndSaveJob() }
                 )
             },
-            floatingActionButtonPosition = FabPosition.Center
+            floatingActionButtonPosition = FabPosition.End
         ) { paddingValues ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
                 item {
                     ExposedDropdownMenuBox(
                         expanded = clientDropdownExpanded,
-                        onExpandedChange = { clientDropdownExpanded = it },
+                        onExpandedChange = { if (clients.size > 1) clientDropdownExpanded = it },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedTextField(
@@ -205,15 +205,15 @@ fun JobDialogCompose(
                     Text("Estado", style = MaterialTheme.typography.titleMedium)
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
-                            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp),
-                            onClick = { status = "Pendiente" },
-                            selected = status == "Pendiente"
-                        ) { Text("Pendiente") }
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            onClick = { status = STATUS_PENDIENTE },
+                            selected = status == STATUS_PENDIENTE
+                        ) { Text(STATUS_PENDIENTE) }
                         SegmentedButton(
-                            shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp),
-                            onClick = { status = "Finalizado" },
-                            selected = status == "Finalizado"
-                        ) { Text("Finalizado") }
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            onClick = { status = STATUS_FINALIZADO },
+                            selected = status == STATUS_FINALIZADO
+                        ) { Text(STATUS_FINALIZADO) }
                     }
                 }
 
@@ -239,7 +239,7 @@ fun JobDialogCompose(
                             expanded = tipoDropdownExpanded,
                             onDismissRequest = { tipoDropdownExpanded = false }
                         ) {
-                            tipoAplicacionOptions.forEach { option ->
+                            TIPO_APLICACION_OPTIONS.forEach { option ->
                                 DropdownMenuItem(text = { Text(option) }, onClick = {
                                     selectedTipoAplicacion = option
                                     tipoDropdownExpanded = false
@@ -280,8 +280,6 @@ fun JobDialogCompose(
                         )
                     }
                 }
-
-                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
