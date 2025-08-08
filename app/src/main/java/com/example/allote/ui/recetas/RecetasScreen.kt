@@ -63,9 +63,6 @@ fun RecetasScreen(
     onNavigateToLotes: (Int) -> Unit
 ) {
     var showSelectProductDialog by remember { mutableStateOf(false) }
-    var showActionMenu by remember { mutableStateOf<Recipe?>(null) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
 
     val resumenText = when {
