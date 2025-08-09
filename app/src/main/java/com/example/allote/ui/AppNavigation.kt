@@ -27,6 +27,7 @@ import com.example.allote.ui.clients.ClientsScreen
 import com.example.allote.ui.clients.ClientsViewModel
 import com.example.allote.ui.dashboard.DashboardScreen
 import com.example.allote.ui.docviewer.DocumentViewerScreen
+import com.example.allote.ui.checklists.ChecklistsRoute
 import com.example.allote.ui.formulaciones.FormulacionesScreen
 import com.example.allote.ui.formulaciones.FormulacionesViewModel
 import com.example.allote.ui.imagesjob.ImagesJobScreen
@@ -82,6 +83,7 @@ object AppDestinations {
     const val GESTION_LOTES_ROUTE = "gestion_lotes/{$JOB_ID_ARG}"
     const val MOVIMIENTO_ID_ARG = "movimientoId"
     const val DOCUMENT_VIEWER_ROUTE = "document_viewer/{$MOVIMIENTO_ID_ARG}"
+    const val CHECKLISTS_ROUTE = "checklists"
 }
 
 @Composable
@@ -142,23 +144,8 @@ fun AppNavHost(
                 onRefresh = { mainViewModel.onRefresh() }
             )
         }
-
-        composable(AppDestinations.DASHBOARD_ROUTE) {
-            // ... (Esta parte no necesita cambios)
-            val mainViewModel: MainViewModel = hiltViewModel()
-            val uiState by mainViewModel.uiState.collectAsState()
-
-            LaunchedEffect(Unit) {
-                setFabAction { showAddJobDialog() }
-            }
-
-            DashboardScreen(
-                uiState = uiState,
-                onNavigate = { route -> navController.navigate(route) },
-                onLocationPermissionGranted = { mainViewModel.onLocationPermissionGranted() },
-                onFetchNextPage = { mainViewModel.onFetchNextPage() },
-                onRefresh = { mainViewModel.onRefresh() }
-            )
+        composable(AppDestinations.CHECKLISTS_ROUTE) {
+            ChecklistsRoute(setFabAction = setFabAction)
         }
         composable(AppDestinations.JOBS_ROUTE) {
             LaunchedEffect(Unit) {
@@ -327,11 +314,14 @@ fun AppNavHost(
         composable(
             route = AppDestinations.RECETAS_ROUTE,
             arguments = listOf(navArgument(AppDestinations.JOB_ID_ARG) { type = NavType.IntType })
-        ) {
+        ) { backStackEntry -> // Obtener el backStackEntry
             val viewModel: RecetasViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
             val isSolidApplication by viewModel.isSolidApplication.collectAsState()
             val filteredProducts by viewModel.filteredAvailableProducts.collectAsState()
+
+            // Extraer el jobId de los argumentos
+            val jobId = backStackEntry.arguments?.getInt(AppDestinations.JOB_ID_ARG) ?: 0
 
             RecetasScreen(
                 uiState = uiState,
@@ -344,14 +334,13 @@ fun AppNavHost(
                 onCaudalChange = viewModel::onCaudalChange,
                 onCaldoPorTachadaChange = viewModel::onCaldoPorTachadaChange,
                 onCalcularClick = viewModel::calcularYGuardarReceta,
-                onEliminarClick = viewModel::eliminarReceta,
                 onAgregarProducto = viewModel::agregarProducto,
                 onEliminarProductoDeReceta = viewModel::eliminarProductoDeReceta,
                 onProductSearchQueryChanged = viewModel::onProductSearchQueryChanged,
                 onClearProductSearch = viewModel::clearProductSearch,
-                onNavigateToLotes = { jobId ->
+                onNavigateToLotes = { jId ->
                     navController.navigate(
-                        AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())
+                        AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jId.toString())
                     )
                 }
             )

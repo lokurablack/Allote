@@ -5,11 +5,16 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -20,13 +25,18 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -119,6 +131,9 @@ fun MainAppScaffold(
     val context = LocalContext.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute != AppDestinations.DASHBOARD_ROUTE
+
+    val trabajosBadgeCount = uiState.trabajosPendientes
 
     // <-- 4. SIMPLIFICACIÓN: YA NO NECESITAMOS LA LÓGICA 'showBars'
     // Como la Splash Screen ahora es manejada por el sistema, el Scaffold
@@ -157,46 +172,91 @@ fun MainAppScaffold(
             )
         },
         bottomBar = {
-            BottomAppBar(
-                containerColor = Color(0xFFE8F5E9)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            if (!showBottomBar) return@Scaffold
+            Box(modifier = Modifier.fillMaxWidth()) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    val trabajosSelected = currentRoute == NavScreen.Trabajos.route
                     NavigationBarItem(
-                        selected = currentRoute == NavScreen.Trabajos.route,
+                        selected = trabajosSelected,
                         onClick = { navController.navigate(NavScreen.Trabajos.route) },
-                        icon = { Icon(NavScreen.Trabajos.icon, NavScreen.Trabajos.label) },
-                        label = { Text(NavScreen.Trabajos.label) }
+                        icon = {
+                            if (trabajosBadgeCount > 0) {
+                                BadgedBox(badge = { Badge { Text(trabajosBadgeCount.toString()) } }) {
+                                    Icon(NavScreen.Trabajos.icon, NavScreen.Trabajos.label)
+                                }
+                            } else {
+                                Icon(NavScreen.Trabajos.icon, NavScreen.Trabajos.label)
+                            }
+                        },
+                        label = { Text(NavScreen.Trabajos.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
+
+                    val clientesSelected = currentRoute == NavScreen.Clientes.route
                     NavigationBarItem(
-                        selected = currentRoute == NavScreen.Clientes.route,
+                        selected = clientesSelected,
                         onClick = { navController.navigate(NavScreen.Clientes.route) },
                         icon = { Icon(NavScreen.Clientes.icon, NavScreen.Clientes.label) },
-                        label = { Text(NavScreen.Clientes.label) }
+                        label = { Text(NavScreen.Clientes.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
-                    FloatingActionButton(
-                        onClick = { fabAction() },
-                        shape = CircleShape,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    ) {
-                        Icon(Icons.Filled.Add, "Agregar")
+
+                    // Botón "+" integrado en el centro
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = { fabAction() },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = "Agregar", tint = MaterialTheme.colorScheme.onPrimary)
+                        }
                     }
+
+                    val adminSelected = currentRoute == NavScreen.Admin.route
                     NavigationBarItem(
-                        selected = currentRoute == NavScreen.Admin.route,
+                        selected = adminSelected,
                         onClick = { navController.navigate(NavScreen.Admin.route) },
                         icon = { Icon(NavScreen.Admin.icon, NavScreen.Admin.label) },
-                        label = { Text(NavScreen.Admin.label) }
+                        label = { Text(NavScreen.Admin.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
+
+                    val productosSelected = currentRoute == NavScreen.Productos.route
                     NavigationBarItem(
-                        selected = currentRoute == NavScreen.Productos.route,
+                        selected = productosSelected,
                         onClick = { navController.navigate(NavScreen.Productos.route) },
                         icon = { Icon(NavScreen.Productos.icon, NavScreen.Productos.label) },
-                        label = { Text(NavScreen.Productos.label) }
+                        label = { Text(NavScreen.Productos.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }

@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.*
@@ -64,7 +66,7 @@ fun JobsScreen(
                 title = { Text("Gestión de Trabajos") },
                 actions = {
                     IconButton(onClick = { showHelpDialog = true }) {
-                        Icon(Icons.Outlined.HelpOutline, contentDescription = "Ayuda")
+                        Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Ayuda")
                     }
                 }
             )
@@ -313,7 +315,7 @@ private fun JobListItem(job: Job, onClick: () -> Unit, onOptionsClick: () -> Uni
             "aplicacion solida" -> Pair(Color(0xFFFBC02D), Icons.Default.Grain)
             "aplicacion mixta" -> Pair(Color(0xFFE64A19), Icons.Default.Science)
             "aplicaciones varias" -> Pair(Color(0xFF388E3C), Icons.Default.Build)
-            else -> Pair(defaultColor, Icons.Default.HelpOutline)
+            else -> Pair(defaultColor, Icons.AutoMirrored.Filled.HelpOutline)
         }
     }
 

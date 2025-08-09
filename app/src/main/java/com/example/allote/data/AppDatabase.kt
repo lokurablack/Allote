@@ -25,9 +25,11 @@ import kotlinx.coroutines.launch
         Formulacion::class,
         Lote::class,
         MovimientoContable::class,
-        DocumentoMovimiento::class
+        DocumentoMovimiento::class,
+        Checklist::class,
+        ChecklistItem::class
     ],
-    version = 21, // Incrementado de 20 a 21
+    version = 22, // Incrementado de 21 a 22
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -44,6 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun loteDao(): LoteDao
     abstract fun movimientoContableDao(): MovimientoContableDao
     abstract fun documentoMovimientoDao(): DocumentoMovimientoDao
+    abstract fun checklistDao(): ChecklistDao
 
     companion object {
         @Volatile
@@ -242,6 +245,33 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `checklists` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `checklist_items` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `checklistId` INTEGER NOT NULL,
+                        `text` TEXT NOT NULL,
+                        `isDone` INTEGER NOT NULL,
+                        `position` INTEGER NOT NULL,
+                        FOREIGN KEY(`checklistId`) REFERENCES `checklists`(`id`) ON UPDATE CASCADE ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_checklist_items_checklistId ON checklist_items(checklistId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -266,7 +296,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_17_18,
                         MIGRATION_18_19,
-                        MIGRATION_20_21 // <-- Nueva migración añadida al final de la lista
+                        MIGRATION_20_21,
+                        MIGRATION_21_22
                     )
                     .fallbackToDestructiveMigration()
                     .build()

@@ -613,13 +613,34 @@ fun QuickNavigationSection(
                 color = Color(0xFF2196F3),
                 onClick = { onNavigate(AppDestinations.CLIENTS_ROUTE) }
             )
-            
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             QuickActionCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Analytics,
                 title = "Administración",
                 color = Color(0xFF9C27B0),
                 onClick = { onNavigate(AppDestinations.ADMIN_ROUTE) }
+            )
+
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Inventory2,
+                title = "Productos",
+                color = Color(0xFF009688),
+                onClick = { onNavigate(AppDestinations.PRODUCTS_ROUTE) }
+            )
+
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Checklist,
+                title = "Checklists",
+                color = Color(0xFF6A1B9A),
+                onClick = { onNavigate(AppDestinations.CHECKLISTS_ROUTE) }
             )
         }
     }

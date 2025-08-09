@@ -1,6 +1,5 @@
 package com.example.allote.ui.recetas
 
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +53,6 @@ fun RecetasScreen(
     onCaudalChange: (String) -> Unit,
     onCaldoPorTachadaChange: (String) -> Unit,
     onCalcularClick: () -> Unit,
-    onEliminarClick: () -> Unit,
     onAgregarProducto: (Product, Double) -> Unit,
     onEliminarProductoDeReceta: (Int) -> Unit,
     onProductSearchQueryChanged: (String) -> Unit,
@@ -64,6 +61,7 @@ fun RecetasScreen(
 ) {
     var showSelectProductDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showActionMenuForRecipe by remember { mutableStateOf<Recipe?>(null) }
 
     val resumenText = when {
         uiState.summaryIsDirty -> "Los datos han cambiado. Vuelve a calcular para ver el resumen actualizado."
@@ -74,6 +72,20 @@ fun RecetasScreen(
     if (showHelpDialog) {
         EnhancedHelpDialog(onDismiss = { showHelpDialog = false })
     }
+
+    if (showActionMenuForRecipe != null) {
+        AlertDialog(
+            onDismissRequest = { showActionMenuForRecipe = null },
+            title = { Text("Acciones de Receta") },
+            text = { Text("Acciones para la receta: ${showActionMenuForRecipe?.id}") },
+            confirmButton = {
+                TextButton(onClick = { showActionMenuForRecipe = null }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
 
     if (uiState.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -99,7 +111,7 @@ fun RecetasScreen(
                                 )
                         ) {
                             Icon(
-                                Icons.Outlined.HelpOutline,
+                                Icons.AutoMirrored.Outlined.HelpOutline,
                                 contentDescription = "Ayuda",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -152,7 +164,7 @@ fun RecetasScreen(
                     resumenText = resumenText,
                     isSummaryDirty = uiState.summaryIsDirty,
                     receta = uiState.receta,
-                    onShowActionMenu = { showActionMenu = it }
+                    onShowActionMenu = { showActionMenuForRecipe = it }
                 )
             }
         }
@@ -675,7 +687,7 @@ private fun EnhancedHelpDialog(onDismiss: () -> Unit) {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Outlined.HelpOutline,
+                                Icons.AutoMirrored.Outlined.HelpOutline,
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
                                 tint = Color.White
@@ -814,45 +826,6 @@ private fun EnhancedHelpSection(
             }
         }
     }
-}
-
-@Composable
-fun EditarRecetaDialog(
-    uiState: RecetasUiState,
-    isSolidApplication: Boolean,
-    onDismiss: () -> Unit,
-    onConfirmar: (String, String, String) -> Unit
-) {
-    var hectareas by remember { mutableStateOf(uiState.hectareasText) }
-    var caudal by remember { mutableStateOf(uiState.caudalText) }
-    var caldoPorTachada by remember { mutableStateOf(uiState.caldoPorTachadaText) }
-    val context = LocalContext.current
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Editar Receta") },
-        text = {
-            Column {
-                OutlinedTextField(value = hectareas, onValueChange = { hectareas = it }, label = { Text("Hectáreas") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                if (!isSolidApplication) {
-                    OutlinedTextField(value = caudal, onValueChange = { caudal = it }, label = { Text("Caudal (L/ha)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                }
-                OutlinedTextField(value = caldoPorTachada, onValueChange = { caldoPorTachada = it }, label = { Text(if (isSolidApplication) "Kgs por tachada" else "Caldo por tachada (L)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if ((hectareas.toDoubleOrNull() ?: 0.0) <= 0) {
-                    Toast.makeText(context, "Hectáreas debe ser un número mayor a 0", Toast.LENGTH_SHORT).show()
-                    return@Button
-                }
-                onConfirmar(hectareas, caudal, caldoPorTachada)
-            }) { Text("Guardar") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

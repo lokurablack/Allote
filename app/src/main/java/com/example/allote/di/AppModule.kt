@@ -236,6 +236,13 @@ object AppModule {
     fun provideDocumentoMovimientoDao(db: AppDatabase): DocumentoMovimientoDao = db.documentoMovimientoDao()
 
     @Provides
+    fun provideChecklistDao(db: AppDatabase): ChecklistDao = db.checklistDao()
+
+    @Provides
+    @Singleton
+    fun provideChecklistsRepository(dao: ChecklistDao): ChecklistsRepository = ChecklistsRepository(dao)
+
+    @Provides
     @Singleton
     fun provideDocumentViewerRepository(
         movimientoContableDao: MovimientoContableDao,
