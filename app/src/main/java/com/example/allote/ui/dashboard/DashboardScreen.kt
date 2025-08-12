@@ -114,48 +114,13 @@ fun DashboardContent(
 
     // Obtener saludo basado en la hora
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greeting = when (currentHour) {
-        in 5..11 -> "Buenos días"
-        in 12..17 -> "Buenas tardes"
-        else -> "Buenas noches"
-    }
-    
-    val currentDate = remember {
-        val formatter = java.text.SimpleDateFormat("EEEE, dd 'de' MMMM", java.util.Locale("es", "ES"))
-        formatter.format(java.util.Date()).replaceFirstChar { it.uppercase() }
-    }
+
 
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- HEADER PERSONALIZADO ---
-        item {
-            DashboardHeader(
-                greeting = greeting,
-                date = currentDate,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-        
-        // --- NAVEGACIÓN RÁPIDA ---
-        item {
-            QuickNavigationSection(
-                onNavigate = onNavigate,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-        
-        // --- ESTADÍSTICAS RÁPIDAS ---
-        item {
-            QuickStatsSection(
-                uiState = uiState,
-                onNavigate = onNavigate,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-        
         // --- SECCIÓN DE CLIMA ---
         uiState.weatherReport?.let { report ->
             item {
@@ -168,6 +133,23 @@ fun DashboardContent(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+        }
+
+        // --- NAVEGACIÓN RÁPIDA ---
+        item {
+            QuickNavigationSection(
+                onNavigate = onNavigate,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        // --- ESTADÍSTICAS RÁPIDAS ---
+        item {
+            QuickStatsSection(
+                uiState = uiState,
+                onNavigate = onNavigate,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
 
         // --- SECCIÓN DE NOTICIAS ---
@@ -386,7 +368,7 @@ fun EnhancedNewsArticleCard(
                         }
                     }
                 )
-                
+
                 // Overlay con gradiente para mejorar legibilidad
                 Box(
                     modifier = Modifier
@@ -403,7 +385,7 @@ fun EnhancedNewsArticleCard(
                         )
                 )
             }
-            
+
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
                     text = article.title,
@@ -412,9 +394,9 @@ fun EnhancedNewsArticleCard(
                     maxLines = 2,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -437,7 +419,7 @@ fun EnhancedNewsArticleCard(
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    
+
                     Icon(
                         Icons.Default.OpenInNew,
                         contentDescription = "Abrir enlace",
@@ -552,7 +534,7 @@ fun DashboardHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 Box(
                     modifier = Modifier
                         .size(60.dp)
@@ -593,7 +575,7 @@ fun QuickNavigationSection(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -605,7 +587,7 @@ fun QuickNavigationSection(
                 color = Color(0xFF4CAF50),
                 onClick = { onNavigate(AppDestinations.JOBS_ROUTE) }
             )
-            
+
             QuickActionCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.People,
@@ -662,7 +644,7 @@ fun QuickStatsSection(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -676,7 +658,7 @@ fun QuickStatsSection(
                 color = Color(0xFFFF9800),
                 onClick = { onNavigate(AppDestinations.JOBS_ROUTE) }
             )
-            
+
             EnhancedStatCard(
                 modifier = Modifier.weight(1f),
                 title = "Clientes",
@@ -686,7 +668,7 @@ fun QuickStatsSection(
                 color = Color(0xFF4CAF50),
                 onClick = { onNavigate(AppDestinations.CLIENTS_ROUTE) }
             )
-            
+
             EnhancedStatCard(
                 modifier = Modifier.weight(1f),
                 title = "Saldo",
@@ -728,7 +710,7 @@ fun SectionHeader(
                 tint = MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Column {
             Text(
                 text = title,
@@ -784,7 +766,7 @@ fun QuickActionCard(
                     modifier = Modifier.size(24.dp),
                     tint = color
                 )
-                
+
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
@@ -842,7 +824,7 @@ fun EnhancedStatCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
-                    
+
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
@@ -850,7 +832,7 @@ fun EnhancedStatCard(
                         tint = color.copy(alpha = 0.7f)
                     )
                 }
-                
+
                 Column {
                     Text(
                         text = value,
