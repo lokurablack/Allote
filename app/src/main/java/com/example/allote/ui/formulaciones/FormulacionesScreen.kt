@@ -1,5 +1,6 @@
 package com.example.allote.ui.formulaciones
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -12,35 +13,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.allote.data.Formulacion
 import kotlinx.coroutines.launch
 
-// --- Moved from FormulacionesScreen for better structure and to avoid recomposition issues ---
-
+// --- DragDropState remains the same as it's a logic holder ---
 class DragDropState(
     private var list: List<Formulacion>,
     private val onMove: (from: Int, to: Int) -> Unit
@@ -124,6 +118,7 @@ fun rememberDragDropState(
     return state
 }
 
+
 // --- Main Screen Composable ---
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -141,7 +136,7 @@ fun FormulacionesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<Formulacion?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Formulacion?>(null) }
-    var showHelpDialog by remember { mutableStateOf(false) } // Estado para el diálogo de ayuda
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     val dragDropState = rememberDragDropState(formulaciones) { from, to -> onMove(from, to) }
 
@@ -149,13 +144,9 @@ fun FormulacionesScreen(
         setFabAction { showAddDialog = true }
     }
 
-    // Auto-guardado al salir de la pantalla
     DisposableEffect(Unit) {
         onDispose {
-            onAutoSave {
-                // Opcional: mostrar toast de confirmación
-                // Toast.makeText(context, "Cambios guardados automáticamente", Toast.LENGTH_SHORT).show()
-            }
+            onAutoSave {}
         }
     }
 
@@ -166,24 +157,28 @@ fun FormulacionesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ordenar Formulaciones") },
+                title = { Text("Orden de Mezcla") },
                 actions = {
                     IconButton(onClick = { showHelpDialog = true }) {
                         Icon(Icons.Outlined.HelpOutline, contentDescription = "Ayuda")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues)) {
-            // Header
-            FormulacionesHeader(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            FormulacionesHeader(modifier = Modifier.padding(16.dp))
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(formulaciones, key = { _, item -> item.id }) { index, formulacion ->
@@ -199,29 +194,16 @@ fun FormulacionesScreen(
                                     height = layoutCoordinates.size.height.toFloat()
                                 )
                             }
-                            .pointerInput(formulacion) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { offset ->
-                                        dragDropState.onDragStart(
-                                            formulacion,
-                                            offset
-                                        )
-                                    },
-                                    onDragEnd = { dragDropState.onDragEnd() },
-                                    onDragCancel = { dragDropState.onDragEnd() },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragDropState.onDrag(dragAmount)
-                                    }
-                                )
-                            }
                     ) {
                         if (isTarget && !isBeingDragged) {
                             Box(
                                 Modifier
                                     .fillMaxWidth()
                                     .height(4.dp)
-                                    .background(MaterialTheme.colorScheme.primary)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(2.dp)
+                                    )
                                     .align(if (dragDropState.isDraggingDown) Alignment.BottomCenter else Alignment.TopCenter)
                             )
                         }
@@ -229,18 +211,27 @@ fun FormulacionesScreen(
                         FormulacionItem(
                             formulacion = formulacion,
                             isBeingDragged = isBeingDragged,
-                            dragDropState = dragDropState,
                             onEdit = { showEditDialog = formulacion },
                             onDelete = { showDeleteDialog = formulacion },
                             modifier = Modifier
                                 .graphicsLayer {
                                     if (isBeingDragged) {
                                         translationY = dragDropState.draggedItemOffset.y
-                                        alpha = 0.8f
-                                        scaleX = 1.05f
-                                        scaleY = 1.05f
-                                        shadowElevation = 8f
+                                        alpha = 0.9f
+                                        scaleX = 1.03f
+                                        scaleY = 1.03f
                                     }
+                                }
+                                .pointerInput(formulacion) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { offset -> dragDropState.onDragStart(formulacion, offset) },
+                                        onDragEnd = { dragDropState.onDragEnd() },
+                                        onDragCancel = { dragDropState.onDragEnd() },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragDropState.onDrag(dragAmount)
+                                        }
+                                    )
                                 }
                         )
                     }
@@ -281,166 +272,32 @@ fun FormulacionesScreen(
     }
 }
 
-// --- Helper Composables ---
-
-@Composable
-private fun HelpDialog(onDismiss: () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(8.dp)
-        ) {
-            Column {
-                // Header
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
-                            ),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                        )
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Help,
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Ayuda: Orden de Mezcla",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .background(
-                                    Color.White.copy(alpha = 0.2f),
-                                    CircleShape
-                                )
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Cerrar",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-
-                // Content
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "Esta pantalla es crucial para asegurar la correcta preparación de las mezclas en el tanque.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    HelpFeatureCard(
-                        icon = Icons.Default.DragIndicator,
-                        title = "Orden de Mezcla",
-                        description = "El número indica el orden de agregado. Arrastra y suelta para reordenar.",
-                        color = Color(0xFF4CAF50)
-                    )
-
-                    HelpFeatureCard(
-                        icon = Icons.Default.Add,
-                        title = "Gestionar Formulaciones",
-                        description = "Usa el botón flotante (+) para añadir y los iconos para editar o eliminar.",
-                        color = Color(0xFF2196F3)
-                    )
-
-                    HelpFeatureCard(
-                        icon = Icons.Default.AutoMode,
-                        title = "Integración con Recetas",
-                        description = "El orden se usa automáticamente en la pantalla de 'Recetas' para guiar al operario.",
-                        color = Color(0xFF9C27B0)
-                    )
-                }
-            }
-        }
-    }
-}
+// --- Improved Helper Composables ---
 
 @Composable
 private fun FormulacionesHeader(modifier: Modifier = Modifier) {
-    Card(
+    Row(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
-                        )
-                    )
-                )
-                .padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Science,
-                        contentDescription = null,
-                        modifier = Modifier.size(30.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Column {
-                    Text(
-                        text = "Orden de Mezcla",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Arrastra para reordenar formulaciones",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+        Icon(
+            imageVector = Icons.Default.Science,
+            contentDescription = null,
+            modifier = Modifier.size(40.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Column {
+            Text(
+                text = "Prioridad de Mezcla",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "Mantén presionado y arrastra para reordenar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -449,64 +306,47 @@ private fun FormulacionesHeader(modifier: Modifier = Modifier) {
 private fun FormulacionItem(
     formulacion: Formulacion,
     isBeingDragged: Boolean,
-    dragDropState: DragDropState,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val cardColor = when {
-        isBeingDragged -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        dragDropState.draggedItem != null -> MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.surfaceContainerHighest
-    }
+    val elevation by animateDpAsState(if (isBeingDragged) 8.dp else 2.dp, label = "elevation")
 
     Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isBeingDragged) 12.dp else 4.dp
-        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(elevation, RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(if (isBeingDragged) 4.dp else 1.dp)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Drag indicator
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+            // Drag Handle and Order
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.DragIndicator,
-                    contentDescription = "Arrastrar para reordenar",
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = "Arrastrar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
                 )
-            }
-
-            // Order number
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary,
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = "${formulacion.ordenMezcla}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
 
@@ -514,61 +354,39 @@ private fun FormulacionItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = formulacion.nombre,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    overflow = TextOverflow.Ellipsis
                 )
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        imageVector = if (formulacion.tipoUnidad == "LIQUIDO")
-                            Icons.Default.WaterDrop
-                        else
-                            Icons.Default.Grain,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        imageVector = if (formulacion.tipoUnidad == "LIQUIDO") Icons.Default.WaterDrop else Icons.Default.Grain,
+                        contentDescription = formulacion.tipoUnidad,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = formulacion.tipoUnidad,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = formulacion.tipoUnidad.lowercase().replaceFirstChar { it.titlecase() },
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                            CircleShape
-                        )
-                ) {
+            // Actions
+            Row {
+                IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Editar",
-                        tint = MaterialTheme.colorScheme.secondary
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                            CircleShape
-                        )
-                ) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = "Eliminar",
@@ -581,57 +399,132 @@ private fun FormulacionItem(
 }
 
 @Composable
-private fun HelpFeatureCard(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    color: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+private fun HelpDialog(onDismiss: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Row(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(32.dp),
+            shape = RoundedCornerShape(24.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = color
-                )
-            }
+            Column {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        )
+                        .padding(24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Help,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Orden de Mezcla",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = color
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Content
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Text(
+                        "Esta pantalla es crucial para asegurar la correcta preparación de las mezclas en el tanque.",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    HelpFeature(
+                        icon = Icons.Default.DragIndicator,
+                        title = "Orden de Mezcla",
+                        description = "El número indica el orden de agregado. Arrastra y suelta para reordenar.",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    HelpFeature(
+                        icon = Icons.Default.Add,
+                        title = "Gestionar Formulaciones",
+                        description = "Usa el botón flotante (+) para añadir y los iconos para editar o eliminar.",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+
+                    HelpFeature(
+                        icon = Icons.Default.AutoMode,
+                        title = "Integración con Recetas",
+                        description = "El orden se usa automáticamente en la pantalla de 'Recetas' para guiar al operario.",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+
+                    TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                        Text("Entendido")
+                    }
+                }
             }
         }
     }
 }
 
+@Composable
+private fun HelpFeature(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(color.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = color
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddEditFormulacionDialog(
     formulacion: Formulacion? = null,
@@ -642,88 +535,58 @@ private fun AddEditFormulacionDialog(
     var tipo by remember { mutableStateOf(formulacion?.tipoUnidad ?: "LIQUIDO") }
     var expanded by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = if (formulacion == null) "Agregar Formulación" else "Editar Formulación",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    text = if (formulacion == null) "Nueva Formulación" else "Editar Formulación",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 20.dp)
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
 
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
                     label = { Text("Nombre") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Box {
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
                     OutlinedTextField(
-                        value = tipo,
+                        value = tipo.lowercase().replaceFirstChar { it.titlecase() },
                         onValueChange = {},
                         label = { Text("Tipo de Unidad") },
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
                         trailingIcon = {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = "Desplegar"
-                                )
-                            }
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         }
                     )
-                    DropdownMenu(
+                    ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
                         DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.WaterDrop,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text("LÍQUIDO")
-                                }
-                            },
-                            onClick = { tipo = "LIQUIDO"; expanded = false }
+                            text = { Text("Líquido") },
+                            onClick = { tipo = "LIQUIDO"; expanded = false },
+                            leadingIcon = { Icon(Icons.Default.WaterDrop, null) }
                         )
                         DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Grain,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text("SÓLIDO")
-                                }
-                            },
-                            onClick = { tipo = "SOLIDO"; expanded = false }
+                            text = { Text("Sólido") },
+                            onClick = { tipo = "SOLIDO"; expanded = false },
+                            leadingIcon = { Icon(Icons.Default.Grain, null) }
                         )
                     }
                 }
@@ -732,20 +595,15 @@ private fun AddEditFormulacionDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    TextButton(onClick = onDismiss) {
                         Text("Cancelar")
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onConfirm(nombre, tipo) },
-                        enabled = nombre.isNotBlank(),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        enabled = nombre.isNotBlank()
                     ) {
                         Text("Guardar")
                     }
@@ -776,110 +634,79 @@ private fun DeleteFormulacionDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Icons.Default.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Eliminar Formulación",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                        text = "Confirmar Eliminación",
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                when {
-                    errorMessage != null -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
-                            Text(
-                                text = errorMessage!!,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-
-                    isInUse == null -> {
-                        Box(
+                when (isInUse) {
+                    null -> {
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                Text("Verificando uso...")
-                            }
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Verificando uso...")
                         }
                     }
-
-                    isInUse == true -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(
-                                    alpha = 0.3f
-                                )
-                            )
-                        ) {
-                            Text(
-                                text = "No se puede eliminar. La formulación está en uso por uno o más productos.",
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-
-                    isInUse == false -> {
+                    true -> {
                         Text(
-                            text = "¿Está seguro de que desea eliminar la formulación '${formulacion.nombre}'?",
+                            text = "No se puede eliminar. La formulación '${formulacion.nombre}' está en uso por uno o más productos.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    false -> {
+                        Text(
+                            text = "¿Está seguro de que desea eliminar la formulación '${formulacion.nombre}'? Esta acción no se puede deshacer.",
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        modifier = Modifier.padding(top = 8.dp),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    TextButton(onClick = onDismiss) {
                         Text("Cancelar")
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = onConfirm,
                         enabled = isInUse == false,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
                         )
