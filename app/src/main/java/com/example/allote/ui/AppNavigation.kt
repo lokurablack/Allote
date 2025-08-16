@@ -202,9 +202,12 @@ fun AppNavHost(
                 onClearSearchQuery = viewModel::onClearSearchQuery,
                 onTabSelected = viewModel::onTabSelected,
                 onSaveProduct = viewModel::saveProduct,
-                setFabAction = setFabAction,
                 onDeleteProduct = viewModel::deleteProduct,
-                onProductClick = { productId -> navController.navigate("product_detail/$productId") }
+                onProductClick = { productId -> navController.navigate("product_detail/$productId") },
+                onNavigateToFormulaciones = {
+                    navController.navigate(AppDestinations.FORMULACIONES_ROUTE)
+                }, // New parameter added
+                setFabAction = setFabAction
             )
         }
         composable(

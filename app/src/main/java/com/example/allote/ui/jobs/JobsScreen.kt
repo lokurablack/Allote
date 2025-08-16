@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,6 +58,7 @@ fun JobsScreen(
     var showJobOptionsDialog by remember { mutableStateOf<Job?>(null) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var isCalendarView by remember { mutableStateOf(false) } // New state for view toggle
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
@@ -65,6 +69,12 @@ fun JobsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Gestión de Trabajos") },
                 actions = {
+                    IconButton(onClick = { isCalendarView = !isCalendarView }) {
+                        Icon(
+                            if (isCalendarView) Icons.Default.List else Icons.Default.CalendarToday,
+                            contentDescription = if (isCalendarView) "Vista Lista" else "Vista Calendario"
+                        )
+                    }
                     IconButton(onClick = { showHelpDialog = true }) {
                         Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Ayuda")
                     }
@@ -95,35 +105,47 @@ fun JobsScreen(
                         )
                     }
 
-                    if (uiState.filteredJobs.isEmpty()) {
+                    if (isCalendarView) {
+                        // Calendar View
                         item {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text("No se encontraron trabajos con esos filtros.", textAlign = TextAlign.Center)
-                            }
+                            JobsCalendarView(
+                                jobs = uiState.filteredJobs,
+                                onJobClick = onJobClick,
+                                onOptionsClick = { showJobOptionsDialog = it }
+                            )
                         }
                     } else {
-                        if (uiState.pendingJobs.isNotEmpty()) {
+                        // Original List View
+                        if (uiState.filteredJobs.isEmpty()) {
                             item {
-                                SectionTitle("Pendientes", uiState.pendingJobs.size)
+                                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                    Text("No se encontraron trabajos con esos filtros.", textAlign = TextAlign.Center)
+                                }
                             }
-                            items(uiState.pendingJobs, key = { it.id }) { job ->
-                                JobListItem(
-                                    job = job,
-                                    onClick = { onJobClick(job.id) },
-                                    onOptionsClick = { showJobOptionsDialog = job }
-                                )
+                        } else {
+                            if (uiState.pendingJobs.isNotEmpty()) {
+                                item {
+                                    SectionTitle("Pendientes", uiState.pendingJobs.size)
+                                }
+                                items(uiState.pendingJobs, key = { it.id }) { job ->
+                                    JobListItem(
+                                        job = job,
+                                        onClick = { onJobClick(job.id) },
+                                        onOptionsClick = { showJobOptionsDialog = job }
+                                    )
+                                }
                             }
-                        }
-                        if (uiState.finishedJobs.isNotEmpty()) {
-                            item {
-                                SectionTitle("Finalizados", uiState.finishedJobs.size)
-                            }
-                            items(uiState.finishedJobs, key = { it.id }) { job ->
-                                JobListItem(
-                                    job = job,
-                                    onClick = { onJobClick(job.id) },
-                                    onOptionsClick = { showJobOptionsDialog = job }
-                                )
+                            if (uiState.finishedJobs.isNotEmpty()) {
+                                item {
+                                    SectionTitle("Finalizados", uiState.finishedJobs.size)
+                                }
+                                items(uiState.finishedJobs, key = { it.id }) { job ->
+                                    JobListItem(
+                                        job = job,
+                                        onClick = { onJobClick(job.id) },
+                                        onOptionsClick = { showJobOptionsDialog = job }
+                                    )
+                                }
                             }
                         }
                     }
@@ -131,6 +153,8 @@ fun JobsScreen(
             }
         }
     }
+
+    // ... existing dialogs code ...
 
     if (showFilterDialog) {
         FilterDialog(
@@ -183,6 +207,307 @@ fun JobsScreen(
             onRecipes = { onViewRecipes(currentJob.id); showJobOptionsDialog = null }
         )
     }
+}
+
+// --- New Calendar View Component ---
+
+@Composable
+private fun JobsCalendarView(
+    jobs: List<Job>,
+    onJobClick: (Int) -> Unit,
+    onOptionsClick: (Job) -> Unit
+) {
+    val calendar = Calendar.getInstance()
+    val currentMonth = calendar.get(Calendar.MONTH)
+    val currentYear = calendar.get(Calendar.YEAR)
+
+    // Get jobs grouped by date
+    val jobsByDate = remember(jobs) {
+        jobs.groupBy { job ->
+            val jobDate = Calendar.getInstance().apply {
+                timeInMillis = when (job.status) {
+                    "Finalizado" -> job.endDate ?: job.startDate ?: System.currentTimeMillis()
+                    else -> job.startDate ?: System.currentTimeMillis() // Pendiente and others
+                }
+            }
+            "${jobDate.get(Calendar.DAY_OF_MONTH)}-${jobDate.get(Calendar.MONTH)}-${jobDate.get(Calendar.YEAR)}"
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Calendar Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${getMonthName(currentMonth)} $currentYear",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Row {
+                    // Legend
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LegendItem("Pendiente", MaterialTheme.colorScheme.error)
+                        LegendItem("Finalizado", MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Days of week header
+            Row(modifier = Modifier.fillMaxWidth()) {
+                val daysOfWeek = listOf("Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb")
+                daysOfWeek.forEach { day ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = day,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Calendar Grid
+            val daysInMonth = getDaysInMonth(currentYear, currentMonth)
+            val firstDayOfMonth = getFirstDayOfWeek(currentYear, currentMonth)
+            val totalCells = if ((daysInMonth + firstDayOfMonth - 1) <= 35) 35 else 42
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(7),
+                modifier = Modifier.height(((totalCells / 7) * 48).dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(totalCells) { index ->
+                    val dayNumber = index - firstDayOfMonth + 2
+                    val isValidDay = dayNumber > 0 && dayNumber <= daysInMonth
+
+                    if (isValidDay) {
+                        val dateKey = "$dayNumber-$currentMonth-$currentYear"
+                        val dayJobs = jobsByDate[dateKey] ?: emptyList()
+
+                        CalendarDay(
+                            day = dayNumber,
+                            jobs = dayJobs,
+                            onDayClick = { clickedJobs ->
+                                if (clickedJobs.isNotEmpty()) {
+                                    // For simplicity, click on the first job
+                                    onJobClick(clickedJobs.first().id)
+                                }
+                            }
+                        )
+                    } else {
+                        Box(modifier = Modifier.size(48.dp))
+                    }
+                }
+            }
+
+            // Show jobs for selected date (if any)
+            if (jobsByDate.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Trabajos del mes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                jobs.take(3).forEach { job ->
+                    JobSummaryItem(
+                        job = job,
+                        onClick = { onJobClick(job.id) },
+                        onOptionsClick = { onOptionsClick(job) }
+                    )
+                }
+
+                if (jobs.size > 3) {
+                    Text(
+                        text = "y ${jobs.size - 3} trabajos más...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDay(
+    day: Int,
+    jobs: List<Job>,
+    onDayClick: (List<Job>) -> Unit
+) {
+    val pendingJobs = jobs.filter { it.status == "Pendiente" }
+    val finishedJobs = jobs.filter { it.status == "Finalizado" }
+
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clickable { onDayClick(jobs) },
+        contentAlignment = Alignment.Center
+    ) {
+        // Background circle if there are jobs
+        if (jobs.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = when {
+                            pendingJobs.isNotEmpty() && finishedJobs.isNotEmpty() ->
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+                            pendingJobs.isNotEmpty() ->
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                            finishedJobs.isNotEmpty() ->
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            else -> Color.Transparent
+                        },
+                        shape = CircleShape
+                    )
+            )
+        }
+
+        Text(
+            text = day.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (jobs.isNotEmpty()) FontWeight.Bold else FontWeight.Normal,
+            color = when {
+                jobs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+
+        // Job indicators (small dots)
+        if (jobs.isNotEmpty()) {
+            Row(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (pendingJobs.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .background(MaterialTheme.colorScheme.error, CircleShape)
+                    )
+                }
+                if (finishedJobs.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(label: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(color, CircleShape)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun JobSummaryItem(
+    job: Job,
+    onClick: () -> Unit,
+    onOptionsClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = job.clientName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${job.surface} ha",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(
+                        color = if (job.status == "Pendiente")
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
+                    )
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(4.dp))
+}
+
+// --- Calendar Utility Functions ---
+
+private fun getMonthName(month: Int): String {
+    val months = listOf(
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    )
+    return months[month]
+}
+
+private fun getDaysInMonth(year: Int, month: Int): Int {
+    val calendar = Calendar.getInstance()
+    calendar.set(year, month, 1)
+    return calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+}
+
+private fun getFirstDayOfWeek(year: Int, month: Int): Int {
+    val calendar = Calendar.getInstance()
+    calendar.set(year, month, 1)
+    return calendar.get(Calendar.DAY_OF_WEEK)
 }
 
 // --- Reusable Styled Components ---

@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -73,6 +75,7 @@ fun ProductosScreen(
     onSaveProduct: (Product) -> Unit,
     onDeleteProduct: (Product) -> Unit,
     onProductClick: (Int) -> Unit,
+    onNavigateToFormulaciones: () -> Unit, // New parameter
     setFabAction: (() -> Unit) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -92,6 +95,16 @@ fun ProductosScreen(
             TopAppBar(
                 title = { Text("Catálogo de Productos") },
                 actions = {
+                    // Only show formulaciones button when in Pulverización tab
+                    if (uiState.selectedTab == ApplicationType.PULVERIZACION) {
+                        IconButton(onClick = onNavigateToFormulaciones) {
+                            Icon(
+                                Icons.Default.Science,
+                                contentDescription = "Gestionar Formulaciones",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     IconButton(onClick = { showHelpDialog = true }) {
                         Icon(Icons.Outlined.HelpOutline, contentDescription = "Ayuda")
                     }
@@ -121,6 +134,14 @@ fun ProductosScreen(
                         }
                     }
                 )
+
+                // Add formulaciones access card for pulverización tab
+                if (uiState.selectedTab == ApplicationType.PULVERIZACION) {
+                    FormulacionesAccessCard(
+                        onNavigateToFormulaciones = onNavigateToFormulaciones,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
                 if (uiState.isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -190,6 +211,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
                 Text("Aquí gestionas tu lista de insumos. Los productos que crees aquí estarán disponibles al momento de armar una receta.")
                 Text("• Pulverización: Productos que se mezclan en un caldo (líquidos, polvos solubles, etc.). Debes asignarles una formulación.")
                 Text("• Esparcido: Productos que se aplican directamente (semillas, fertilizantes granulados, etc.).")
+                Text("• Formulaciones: En la pestaña de Pulverización, puedes acceder a gestionar el orden de mezcla.")
                 Text("Usa el botón (+) para añadir nuevos productos a la pestaña seleccionada.", style = MaterialTheme.typography.bodySmall)
             }
         },
@@ -303,6 +325,72 @@ fun AddEsparcidoProductDialog(onDismiss: () -> Unit, onSave: (String, String) ->
                     TextButton(onClick = onDismiss) { Text("Cancelar") }
                     Button(onClick = { if (nombreComercial.isNotBlank() && selectedTipo.isNotBlank()) { onSave(nombreComercial, selectedTipo) } }) { Text("Guardar") }
                 }
+            }
+        }
+    }
+}
+
+// --- New Component for Formulaciones Access ---
+
+@Composable
+private fun FormulacionesAccessCard(
+    onNavigateToFormulaciones: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Science,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Gestionar Formulaciones",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Configura el orden de mezcla para productos de pulverización",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Button(
+                onClick = onNavigateToFormulaciones,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Ir")
             }
         }
     }
