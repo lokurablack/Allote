@@ -1,5 +1,7 @@
 package com.example.allote.ui.formulaciones
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -30,11 +32,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.allote.data.Formulacion
 import kotlinx.coroutines.launch
@@ -54,8 +59,8 @@ class DragDropState(
     var isDraggingDown by mutableStateOf(false)
         private set
 
-    private var initialDragIndex by mutableStateOf(-1)
-    private val itemLayouts = mutableStateMapOf<Any, Pair<Float, Float>>()
+    var initialDragIndex by mutableStateOf(-1)
+    val itemLayouts = mutableStateMapOf<Any, Pair<Float, Float>>()
 
     fun updateList(newList: List<Formulacion>) {
         this.list = newList
@@ -124,6 +129,16 @@ fun rememberDragDropState(
     return state
 }
 
+@Preview
+@Composable
+fun RememberDragDropStatePreview() {
+    val formulaciones = listOf(
+        Formulacion(id = 1, nombre = "Formulacion 1", ordenMezcla = 1, tipoUnidad = "LIQUIDO"),
+        Formulacion(id = 2, nombre = "Formulacion 2", ordenMezcla = 2, tipoUnidad = "SOLIDO")
+    )
+    rememberDragDropState(list = formulaciones, onMove = { _, _ -> })
+}
+
 // --- Main Screen Composable ---
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -142,6 +157,7 @@ fun FormulacionesScreen(
     var showEditDialog by remember { mutableStateOf<Formulacion?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Formulacion?>(null) }
     var showHelpDialog by remember { mutableStateOf(false) } // Estado para el diálogo de ayuda
+    val haptics = LocalHapticFeedback.current
 
     val dragDropState = rememberDragDropState(formulaciones) { from, to -> onMove(from, to) }
 
@@ -187,8 +203,33 @@ fun FormulacionesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(formulaciones, key = { _, item -> item.id }) { index, formulacion ->
-                    val isBeingDragged = dragDropState.draggedItem?.id == formulacion.id
-                    val isTarget = dragDropState.overIndex == index
+                    val draggedItem = dragDropState.draggedItem
+                    val isBeingDragged = draggedItem?.id == formulacion.id
+                    
+                    val draggedItemHeight = remember(draggedItem) {
+                        if (draggedItem != null) {
+                            dragDropState.itemLayouts[draggedItem.id]?.second ?: 0f
+                        } else {
+                            0f
+                        }
+                    }
+
+                    val displacement by animateFloatAsState(
+                        targetValue = when {
+                            draggedItem == null -> 0f
+                            isBeingDragged -> 0f
+                            else -> {
+                                val initialIndex = dragDropState.initialDragIndex
+                                val hoverIndex = dragDropState.overIndex
+                                when {
+                                    initialIndex == -1 || hoverIndex == -1 || initialIndex == hoverIndex -> 0f
+                                    index in (initialIndex + 1)..hoverIndex -> -draggedItemHeight
+                                    index in hoverIndex..(initialIndex - 1) -> draggedItemHeight
+                                    else -> 0f
+                                }
+                            }
+                        }, label = "displacementAnimation"
+                    )
 
                     Box(
                         modifier = Modifier
@@ -202,6 +243,7 @@ fun FormulacionesScreen(
                             .pointerInput(formulacion) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { offset ->
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         dragDropState.onDragStart(
                                             formulacion,
                                             offset
@@ -216,16 +258,6 @@ fun FormulacionesScreen(
                                 )
                             }
                     ) {
-                        if (isTarget && !isBeingDragged) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .background(MaterialTheme.colorScheme.primary)
-                                    .align(if (dragDropState.isDraggingDown) Alignment.BottomCenter else Alignment.TopCenter)
-                            )
-                        }
-
                         FormulacionItem(
                             formulacion = formulacion,
                             isBeingDragged = isBeingDragged,
@@ -240,6 +272,8 @@ fun FormulacionesScreen(
                                         scaleX = 1.05f
                                         scaleY = 1.05f
                                         shadowElevation = 8f
+                                    } else {
+                                        translationY = displacement
                                     }
                                 }
                         )
@@ -281,6 +315,27 @@ fun FormulacionesScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Preview
+@Composable
+fun FormulacionesScreenPreview() {
+    val formulaciones = listOf(
+        Formulacion(id = 1, nombre = "Formulacion A", ordenMezcla = 1, tipoUnidad = "LIQUIDO"),
+        Formulacion(id = 2, nombre = "Formulacion B", ordenMezcla = 2, tipoUnidad = "SOLIDO"),
+        Formulacion(id = 3, nombre = "Formulacion C", ordenMezcla = 3, tipoUnidad = "LIQUIDO")
+    )
+    FormulacionesScreen(
+        formulaciones = formulaciones,
+        onMove = { _, _ -> },
+        onAddFormulacion = { _, _ -> },
+        onUpdateFormulacion = { _, _, _ -> },
+        onDeleteFormulacion = {},
+        isFormulacionInUse = { false },
+        setFabAction = {},
+        onAutoSave = {}
+    )
+}
+
 // --- Helper Composables ---
 
 @Composable
@@ -292,8 +347,8 @@ private fun HelpDialog(onDismiss: () -> Unit) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(24.dp),
+            shape = RoundedCornerShape(28.dp),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column {
@@ -307,56 +362,55 @@ private fun HelpDialog(onDismiss: () -> Unit) {
                                     MaterialTheme.colorScheme.primary,
                                     MaterialTheme.colorScheme.tertiary
                                 )
-                            ),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                            )
                         )
-                        .padding(20.dp)
+                        .padding(24.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Icon(
                                 Icons.Default.Help,
                                 contentDescription = null,
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(32.dp),
                                 tint = Color.White
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Ayuda: Orden de Mezcla",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .background(
-                                    Color.White.copy(alpha = 0.2f),
-                                    CircleShape
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color.White.copy(alpha = 0.2f),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Cerrar",
+                                    tint = Color.White
                                 )
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Cerrar",
-                                tint = Color.White
-                            )
+                            }
                         }
+                        Text(
+                            text = "Ayuda: Orden de Mezcla",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
 
                 // Content
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
                         "Esta pantalla es crucial para asegurar la correcta preparación de las mezclas en el tanque.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
@@ -364,21 +418,21 @@ private fun HelpDialog(onDismiss: () -> Unit) {
                         icon = Icons.Default.DragIndicator,
                         title = "Orden de Mezcla",
                         description = "El número indica el orden de agregado. Arrastra y suelta para reordenar.",
-                        color = Color(0xFF4CAF50)
+                        color = MaterialTheme.colorScheme.primary
                     )
 
                     HelpFeatureCard(
                         icon = Icons.Default.Add,
                         title = "Gestionar Formulaciones",
                         description = "Usa el botón flotante (+) para añadir y los iconos para editar o eliminar.",
-                        color = Color(0xFF2196F3)
+                        color = MaterialTheme.colorScheme.secondary
                     )
 
                     HelpFeatureCard(
                         icon = Icons.Default.AutoMode,
                         title = "Integración con Recetas",
                         description = "El orden se usa automáticamente en la pantalla de 'Recetas' para guiar al operario.",
-                        color = Color(0xFF9C27B0)
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
@@ -386,63 +440,59 @@ private fun HelpDialog(onDismiss: () -> Unit) {
     }
 }
 
+@Preview
+@Composable
+fun HelpDialogPreview() {
+    HelpDialog(onDismiss = {})
+}
+
 @Composable
 private fun FormulacionesHeader(modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
-                        )
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        Color.Transparent
                     )
                 )
-                .padding(20.dp)
+            )
+            .padding(top = 24.dp, bottom = 16.dp, start = 24.dp, end = 24.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Science,
-                        contentDescription = null,
-                        modifier = Modifier.size(30.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+            Icon(
+                imageVector = Icons.Default.Science,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
 
-                Column {
-                    Text(
-                        text = "Orden de Mezcla",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Arrastra para reordenar formulaciones",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Column {
+                Text(
+                    text = "Orden de Mezcla",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Arrastra para reordenar las formulaciones",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun FormulacionesHeaderPreview() {
+    FormulacionesHeader()
 }
 
 @Composable
@@ -455,48 +505,32 @@ private fun FormulacionItem(
     onDelete: () -> Unit
 ) {
     val cardColor = when {
-        isBeingDragged -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        dragDropState.draggedItem != null -> MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+        isBeingDragged -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isBeingDragged) 12.dp else 4.dp
+            defaultElevation = if (isBeingDragged) 8.dp else 2.dp
         ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        border = if (isBeingDragged) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .fillMaxWidth().height(IntrinsicSize.Min) // Reduced height
+                .padding(horizontal = 8.dp, vertical = 8.dp), // Adjusted vertical padding
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Drag indicator
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DragIndicator,
-                    contentDescription = "Arrastrar para reordenar",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
 
             // Order number
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .background(
+                    .size(30.dp)
+                    .background( // Ensure this background doesn't push height
                         MaterialTheme.colorScheme.primary,
                         CircleShape
                     ),
@@ -506,7 +540,7 @@ private fun FormulacionItem(
                     text = "${formulacion.ordenMezcla}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
@@ -514,7 +548,7 @@ private fun FormulacionItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = formulacion.nombre,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -525,33 +559,25 @@ private fun FormulacionItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    val icon = if (formulacion.tipoUnidad == "LIQUIDO") Icons.Default.WaterDrop else Icons.Default.Grain
                     Icon(
-                        imageVector = if (formulacion.tipoUnidad == "LIQUIDO")
-                            Icons.Default.WaterDrop
-                        else
-                            Icons.Default.Grain,
+                        imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = formulacion.tipoUnidad,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = formulacion.tipoUnidad.lowercase().replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                            CircleShape
-                        )
                 ) {
                     Icon(
                         Icons.Default.Edit,
@@ -562,12 +588,6 @@ private fun FormulacionItem(
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                            CircleShape
-                        )
                 ) {
                     Icon(
                         Icons.Default.Delete,
@@ -579,6 +599,21 @@ private fun FormulacionItem(
         }
     }
 }
+
+@Preview
+@Composable
+fun FormulacionItemPreview() {
+    val formulacion = Formulacion(id = 1, nombre = "Test Formulacion", ordenMezcla = 1, tipoUnidad = "LIQUIDO")
+    val dragDropState = rememberDragDropState(list = listOf(formulacion), onMove = {_,_ ->})
+    FormulacionItem(
+        formulacion = formulacion,
+        isBeingDragged = false,
+        dragDropState = dragDropState,
+        onEdit = {},
+        onDelete = {}
+    )
+}
+
 
 @Composable
 private fun HelpFeatureCard(
@@ -632,6 +667,18 @@ private fun HelpFeatureCard(
     }
 }
 
+@Preview
+@Composable
+fun HelpFeatureCardPreview() {
+    HelpFeatureCard(
+        icon = Icons.Default.Info,
+        title = "Sample Feature",
+        description = "This is a sample description for the feature card.",
+        color = MaterialTheme.colorScheme.secondary
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddEditFormulacionDialog(
     formulacion: Formulacion? = null,
@@ -649,15 +696,15 @@ private fun AddEditFormulacionDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(8.dp)
+            shape = RoundedCornerShape(28.dp),
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                val title = if (formulacion == null) "Agregar Formulación" else "Editar Formulación"
                 Text(
-                    text = if (formulacion == null) "Agregar Formulación" else "Editar Formulación",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -665,31 +712,32 @@ private fun AddEditFormulacionDialog(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre de la formulación") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Box {
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
                     OutlinedTextField(
-                        value = tipo,
+                        value = tipo.lowercase().replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         label = { Text("Tipo de Unidad") },
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
                         trailingIcon = {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = "Desplegar"
-                                )
-                            }
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         }
                     )
-                    DropdownMenu(
+                    ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
@@ -704,7 +752,7 @@ private fun AddEditFormulacionDialog(
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary
                                     )
-                                    Text("LÍQUIDO")
+                                    Text("Líquido")
                                 }
                             },
                             onClick = { tipo = "LIQUIDO"; expanded = false }
@@ -720,7 +768,7 @@ private fun AddEditFormulacionDialog(
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary
                                     )
-                                    Text("SÓLIDO")
+                                    Text("Sólido")
                                 }
                             },
                             onClick = { tipo = "SOLIDO"; expanded = false }
@@ -732,19 +780,18 @@ private fun AddEditFormulacionDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
                     ) {
                         Text("Cancelar")
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onConfirm(nombre, tipo) },
                         enabled = nombre.isNotBlank(),
-                        modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Guardar")
@@ -753,6 +800,15 @@ private fun AddEditFormulacionDialog(
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun AddEditFormulacionDialogPreview() {
+    AddEditFormulacionDialog(
+        onDismiss = {},
+        onConfirm = { _, _ -> }
+    )
 }
 
 @Composable
@@ -770,26 +826,25 @@ private fun DeleteFormulacionDialog(
         scope.launch {
             try {
                 isInUse = isFormulacionInUse()
-            } catch (_: Exception) {
-                errorMessage = "Error al verificar el uso."
+            } catch (e: Exception) {
+                errorMessage = "Error al verificar el uso de la formulación."
             }
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
+            shape = RoundedCornerShape(28.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(8.dp)
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Icon(
                         Icons.Default.Delete,
@@ -799,66 +854,51 @@ private fun DeleteFormulacionDialog(
                     )
                     Text(
                         text = "Eliminar Formulación",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                when {
-                    errorMessage != null -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 60.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        errorMessage != null -> {
                             Text(
                                 text = errorMessage!!,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
-                    }
-
-                    isInUse == null -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        isInUse == null -> {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                Text("Verificando uso...")
+                                Text("Verificando...")
                             }
                         }
-                    }
-
-                    isInUse == true -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(
-                                    alpha = 0.3f
-                                )
-                            )
-                        ) {
+                        isInUse == true -> {
                             Text(
-                                text = "No se puede eliminar. La formulación está en uso por uno o más productos.",
+                                text = "Esta formulación no se puede eliminar porque está en uso.",
                                 modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
-                    }
-
-                    isInUse == false -> {
-                        Text(
-                            text = "¿Está seguro de que desea eliminar la formulación '${formulacion.nombre}'?",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        isInUse == false -> {
+                            Text(
+                                text = "¿Confirmas que quieres eliminar la formulación '${formulacion.nombre}'? Esta acción no se puede deshacer.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
@@ -866,19 +906,15 @@ private fun DeleteFormulacionDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    TextButton(onClick = onDismiss) {
                         Text("Cancelar")
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = onConfirm,
                         enabled = isInUse == false,
-                        modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
@@ -890,4 +926,16 @@ private fun DeleteFormulacionDialog(
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun DeleteFormulacionDialogPreview() {
+    val formulacion = Formulacion(id = 1, nombre = "Formulacion X", ordenMezcla = 1, tipoUnidad = "SOLIDO")
+    DeleteFormulacionDialog(
+        formulacion = formulacion,
+        onDismiss = {},
+        onConfirm = {},
+        isFormulacionInUse = { false }
+    )
 }

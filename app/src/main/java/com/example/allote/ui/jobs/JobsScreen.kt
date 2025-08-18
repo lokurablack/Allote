@@ -161,7 +161,11 @@ fun JobsScreen(
             uiState = uiState,
             onDismiss = { showFilterDialog = false },
             onFilterChange = onFilterChange,
-            onDateChange = onDateChange
+            onDateChange = onDateChange,
+            onClearFilters = {
+                onFilterChange("", "", "", "")
+                onDateChange(null, null)
+            }
         )
     }
 
@@ -218,16 +222,27 @@ private fun JobsCalendarView(
     onOptionsClick: (Job) -> Unit
 ) {
     val calendar = Calendar.getInstance()
-    val currentMonth = calendar.get(Calendar.MONTH)
-    val currentYear = calendar.get(Calendar.YEAR)
+    var year by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
+    var month by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
 
-    // Get jobs grouped by date
-    val jobsByDate = remember(jobs) {
-        jobs.groupBy { job ->
+    val jobsForMonth = remember(jobs, year, month) {
+        jobs.filter { job ->
             val jobDate = Calendar.getInstance().apply {
                 timeInMillis = when (job.status) {
                     "Finalizado" -> job.endDate ?: job.startDate ?: System.currentTimeMillis()
-                    else -> job.startDate ?: System.currentTimeMillis() // Pendiente and others
+                    else -> job.startDate ?: System.currentTimeMillis()
+                }
+            }
+            jobDate.get(Calendar.YEAR) == year && jobDate.get(Calendar.MONTH) == month
+        }.sortedBy { it.startDate }
+    }
+
+    val jobsByDate = remember(jobsForMonth) {
+        jobsForMonth.groupBy { job ->
+            val jobDate = Calendar.getInstance().apply {
+                timeInMillis = when (job.status) {
+                    "Finalizado" -> job.endDate ?: job.startDate ?: System.currentTimeMillis()
+                    else -> job.startDate ?: System.currentTimeMillis()
                 }
             }
             "${jobDate.get(Calendar.DAY_OF_MONTH)}-${jobDate.get(Calendar.MONTH)}-${jobDate.get(Calendar.YEAR)}"
@@ -246,22 +261,46 @@ private fun JobsCalendarView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = {
+                    if (month == 0) {
+                        month = 11
+                        year--
+                    } else {
+                        month--
+                    }
+                }) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = "Mes Anterior")
+                }
                 Text(
-                    text = "${getMonthName(currentMonth)} $currentYear",
+                    text = "${getMonthName(month)} $year",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                Row {
-                    // Legend
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        LegendItem("Pendiente", MaterialTheme.colorScheme.error)
-                        LegendItem("Finalizado", MaterialTheme.colorScheme.primary)
+                IconButton(onClick = {
+                    if (month == 11) {
+                        month = 0
+                        year++
+                    } else {
+                        month++
                     }
+                }) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Mes Siguiente")
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Legend
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LegendItem("Pendiente", MaterialTheme.colorScheme.error)
+                Spacer(Modifier.width(16.dp))
+                LegendItem("Finalizado", MaterialTheme.colorScheme.primary)
+            }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -286,8 +325,8 @@ private fun JobsCalendarView(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Calendar Grid
-            val daysInMonth = getDaysInMonth(currentYear, currentMonth)
-            val firstDayOfMonth = getFirstDayOfWeek(currentYear, currentMonth)
+            val daysInMonth = getDaysInMonth(year, month)
+            val firstDayOfMonth = getFirstDayOfWeek(year, month)
             val totalCells = if ((daysInMonth + firstDayOfMonth - 1) <= 35) 35 else 42
 
             LazyVerticalGrid(
@@ -301,7 +340,7 @@ private fun JobsCalendarView(
                     val isValidDay = dayNumber > 0 && dayNumber <= daysInMonth
 
                     if (isValidDay) {
-                        val dateKey = "$dayNumber-$currentMonth-$currentYear"
+                        val dateKey = "$dayNumber-$month-$year"
                         val dayJobs = jobsByDate[dateKey] ?: emptyList()
 
                         CalendarDay(
@@ -309,7 +348,6 @@ private fun JobsCalendarView(
                             jobs = dayJobs,
                             onDayClick = { clickedJobs ->
                                 if (clickedJobs.isNotEmpty()) {
-                                    // For simplicity, click on the first job
                                     onJobClick(clickedJobs.first().id)
                                 }
                             }
@@ -321,7 +359,7 @@ private fun JobsCalendarView(
             }
 
             // Show jobs for selected date (if any)
-            if (jobsByDate.isNotEmpty()) {
+            if (jobsForMonth.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Trabajos del mes",
@@ -330,20 +368,11 @@ private fun JobsCalendarView(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                jobs.take(3).forEach { job ->
+                jobsForMonth.forEach { job ->
                     JobSummaryItem(
                         job = job,
                         onClick = { onJobClick(job.id) },
                         onOptionsClick = { onOptionsClick(job) }
-                    )
-                }
-
-                if (jobs.size > 3) {
-                    Text(
-                        text = "y ${jobs.size - 3} trabajos más...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(8.dp)
                     )
                 }
             }
@@ -495,7 +524,7 @@ private fun getMonthName(month: Int): String {
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     )
-    return months[month]
+    return months.getOrElse(month) { "Invalid month" }
 }
 
 private fun getDaysInMonth(year: Int, month: Int): Int {
@@ -704,7 +733,8 @@ private fun FilterDialog(
     uiState: JobsUiState,
     onDismiss: () -> Unit,
     onFilterChange: (String?, String?, String?, String?) -> Unit,
-    onDateChange: (Long?, Long?) -> Unit
+    onDateChange: (Long?, Long?) -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -768,6 +798,15 @@ private fun FilterDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DateSelector("Desde", uiState.fromDate, { onDateChange(it, uiState.toDate) }, Modifier.weight(1f))
                         DateSelector("Hasta", uiState.toDate, { onDateChange(uiState.fromDate, it) }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onClearFilters,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Limpiar Filtros", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Limpiar Filtros")
                     }
                 }
             }

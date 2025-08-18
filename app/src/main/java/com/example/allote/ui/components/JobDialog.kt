@@ -323,21 +323,26 @@ fun JobDialogCompose(
                         )
                     }
                     item {
-                        OutlinedTextField(
-                            value = if (realStartMillis > 0) DateFormatter.formatMillis(realStartMillis) else "Seleccionar fecha (Opcional)",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Fecha real de inicio") },
-                            leadingIcon = { Icon(Icons.Default.DateRange, null) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showDatePicker() },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        Box {
+                            OutlinedTextField(
+                                value = if (realStartMillis > 0) DateFormatter.formatMillis(realStartMillis) else "Seleccionar fecha (Opcional)",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Fecha real de inicio") },
+                                leadingIcon = { Icon(Icons.Default.DateRange, null) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
-                        )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable { showDatePicker() }
+                            )
+                        }
                     }
 
                     item {

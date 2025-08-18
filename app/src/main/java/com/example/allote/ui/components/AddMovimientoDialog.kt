@@ -67,6 +67,7 @@ fun AddMovimientoDialog(
     var entidadEmisora by remember { mutableStateOf("") }
     var fechaCobroMillis by remember { mutableStateOf<Long?>(null) }
     var fechaMovimientoMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var notas by remember { mutableStateOf("") } // State for optional notes
 
     LaunchedEffect(movimientoToEdit) {
         if (movimientoToEdit != null) {
@@ -75,6 +76,7 @@ fun AddMovimientoDialog(
             if (movimientoToEdit.tipoMovimiento == "PAGO" || movimientoToEdit.tipoMovimiento == "COBRO") {
                 selectedMode = "Pago"
                 monto = movimientoToEdit.haber.takeIf { it > 0 }?.toString() ?: movimientoToEdit.debe.toString()
+                notas = movimientoToEdit.detallesPago ?: "" // Populate notes
             } else {
                 selectedMode = "Personalizado"
                 monto = movimientoToEdit.debe.takeIf { it > 0 }?.toString() ?: movimientoToEdit.haber.toString()
@@ -122,9 +124,14 @@ fun AddMovimientoDialog(
                         }
 
                         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        val detalles = if (selectedMode == "Pago" && (tipoPago == "Cheque Común" || tipoPago == "E-Cheq")) {
-                            "Entidad: $entidadEmisora, Fecha Cobro: ${fechaCobroMillis?.let { dateFormat.format(Date(it)) } ?: "N/A"}"
+                        val detalles = if (selectedMode == "Pago") {
+                            val checkDetails = if (tipoPago == "Cheque Común" || tipoPago == "E-Cheq") {
+                                "Entidad: $entidadEmisora, Fecha Cobro: ${fechaCobroMillis?.let { dateFormat.format(Date(it)) } ?: "N/A"}"
+                            } else { "" }
+                            // Combine check details and notes, separated by a period.
+                            listOf(checkDetails, notas).filter { it.isNotBlank() }.joinToString(". ")
                         } else { null }
+
 
                         val movimientoFinal = MovimientoContable(
                             id = movimientoToEdit?.id ?: 0,
@@ -135,7 +142,7 @@ fun AddMovimientoDialog(
                             debe = if (selectedMode == "Personalizado" && debeHaber == "Debe") montoDouble else 0.0,
                             haber = if (selectedMode == "Pago" || (selectedMode == "Personalizado" && debeHaber == "Haber")) montoDouble else 0.0,
                             tipoMovimiento = if (selectedMode == "Pago") "PAGO" else "AJUSTE",
-                            detallesPago = detalles,
+                            detallesPago = detalles?.takeIf { it.isNotBlank() }, // Save combined details
                             documentoUri = null
                         )
 
@@ -210,7 +217,8 @@ fun AddMovimientoDialog(
                             val cal = Calendar.getInstance()
                             DatePickerDialog(context, { _, y, m, d -> cal.set(y, m, d); fechaCobroMillis = cal.timeInMillis }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
                         },
-                        descripcion = descripcion, onDescripcionChange = { descripcion = it }
+                        descripcion = descripcion, onDescripcionChange = { descripcion = it },
+                        notas = notas, onNotasChange = { notas = it } // Pass notes state
                     )
                 } else {
                     PersonalizadoForm(
@@ -268,7 +276,8 @@ fun PagoForm(
     numeroCheque: String, onNumeroChequeChange: (String) -> Unit,
     entidadEmisora: String, onEntidadEmisoraChange: (String) -> Unit,
     fechaCobroMillis: Long?, onFechaCobroClick: () -> Unit,
-    descripcion: String, onDescripcionChange: (String) -> Unit
+    descripcion: String, onDescripcionChange: (String) -> Unit,
+    notas: String, onNotasChange: (String) -> Unit // Added for optional notes
 ) {
     var tipoPagoExpanded by remember { mutableStateOf(false) }
     val tiposDePago = listOf("Efectivo", "Transferencia", "Cheque Común", "E-Cheq", "Otros")
@@ -331,6 +340,13 @@ fun PagoForm(
                 OutlinedTextField(value = descripcion, onValueChange = onDescripcionChange, label = { Text("Descripción del Pago") }, modifier = Modifier.fillMaxWidth())
             }
         }
+        // Always-visible notes field
+        OutlinedTextField(
+            value = notas,
+            onValueChange = onNotasChange,
+            label = { Text("Notas (Opcional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

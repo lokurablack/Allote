@@ -362,6 +362,15 @@ fun MovimientoItem(
                     Text("$docCount Documento(s)", style = MaterialTheme.typography.bodySmall)
                 }
             }
+            if (!movimiento.detallesPago.isNullOrBlank()) {
+                Text(
+                    text = movimiento.detallesPago,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(dateString, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(
