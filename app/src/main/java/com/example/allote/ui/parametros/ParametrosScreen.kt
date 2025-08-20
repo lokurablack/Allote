@@ -148,36 +148,22 @@ private fun ParametrosEditForm(
                 leadingIcon = { Icon(Icons.Default.Science, null) },
                 modifier = Modifier.fillMaxWidth()
             )
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Parámetros de Vuelo", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = interlineado, onValueChange = { interlineado = it }, label = { Text("Interlineado (m)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = velocidad, onValueChange = { velocidad = it }, label = { Text("Velocidad (km/h)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = altura, onValueChange = { altura = it }, label = { Text("Altura (m)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
-                }
-            }
+            OutlinedTextField(value = interlineado, onValueChange = { interlineado = it }, label = { Text("Interlineado (m)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = velocidad, onValueChange = { velocidad = it }, label = { Text("Velocidad (km/h)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = altura, onValueChange = { altura = it }, label = { Text("Altura (m)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), modifier = Modifier.fillMaxWidth())
+
             if (uiState.isSolidApplication) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Parámetros de Esparcido", style = MaterialTheme.typography.titleMedium)
-                        ExposedDropdownMenuBox(expanded = expandedDisco, onExpandedChange = { expandedDisco = it }) {
-                            OutlinedTextField(value = discoUtilizado, onValueChange = {}, readOnly = true, label = { Text("Disco Utilizado") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDisco) }, modifier = Modifier.menuAnchor().fillMaxWidth())
-                            ExposedDropdownMenu(expanded = expandedDisco, onDismissRequest = { expandedDisco = false }) {
-                                discoOptions.forEach { option ->
-                                    DropdownMenuItem(text = { Text(option) }, onClick = { discoUtilizado = option; expandedDisco = false })
-                                }
-                            }
+                ExposedDropdownMenuBox(expanded = expandedDisco, onExpandedChange = { expandedDisco = it }) {
+                    OutlinedTextField(value = discoUtilizado, onValueChange = {}, readOnly = true, label = { Text("Disco Utilizado") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDisco) }, modifier = Modifier.menuAnchor().fillMaxWidth())
+                    ExposedDropdownMenu(expanded = expandedDisco, onDismissRequest = { expandedDisco = false }) {
+                        discoOptions.forEach { option ->
+                            DropdownMenuItem(text = { Text(option) }, onClick = { discoUtilizado = option; expandedDisco = false })
                         }
-                        OutlinedTextField(value = revoluciones, onValueChange = { revoluciones = it }, label = { Text("Revoluciones (RPM)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
                     }
                 }
+                OutlinedTextField(value = revoluciones, onValueChange = { revoluciones = it }, label = { Text("Revoluciones (RPM)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
             } else {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Parámetros de Pulverización", style = MaterialTheme.typography.titleMedium)
-                        OutlinedTextField(value = tamanoGota, onValueChange = { tamanoGota = it }, label = { Text("Tamaño de Gota (μm)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
-                    }
-                }
+                OutlinedTextField(value = tamanoGota, onValueChange = { tamanoGota = it }, label = { Text("Tamaño de Gota (μm)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
             }
             Spacer(modifier = Modifier.height(80.dp))
         }

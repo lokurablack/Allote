@@ -34,8 +34,11 @@ import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.example.allote.data.Article
 import com.example.allote.data.WeatherReport
+import com.example.allote.data.WeatherType
 import com.example.allote.ui.AppDestinations
 import com.example.allote.ui.components.SummaryCard
+import com.example.allote.ui.main.DolarInfo
+import com.example.allote.ui.main.NewsState
 import com.example.allote.ui.jobdetail.HourlyForecastDialog
 import com.example.allote.ui.main.MainUiState
 import kotlin.math.roundToInt
@@ -101,6 +104,31 @@ fun DashboardScreen(
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun DashboardScreenPreview() {
+    val uiState = MainUiState(
+        isLoading = false,
+        isRefreshing = false,
+        dolarInfo = DolarInfo(isLoading = false),
+        weatherReport = WeatherReport(
+            current = com.example.allote.data.CurrentWeather(25.0, 10.0, WeatherType.ClearSky),
+            daily = listOf(
+                com.example.allote.data.DailyWeather("2023-01-01", WeatherType.ClearSky, 30.0, 20.0, 0.0, 15.0, 20.0, "N", emptyList())
+            )
+        ),
+        locationName = "Sample Location",
+        newsState = NewsState(articles = emptyList())
+    )
+    DashboardScreen(
+        uiState = uiState,
+        onNavigate = {},
+        onLocationPermissionGranted = {},
+        onFetchNextPage = {},
+        onRefresh = {}
+    )
+}
 @Composable
 fun DashboardContent(
     uiState: MainUiState,
@@ -215,6 +243,28 @@ fun DashboardContent(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun DashboardContentPreview() {
+    val uiState = MainUiState(
+        isLoading = false,
+        isRefreshing = false,
+        dolarInfo = DolarInfo(isLoading = false),
+        weatherReport = WeatherReport(
+            current = com.example.allote.data.CurrentWeather(25.0, 10.0, WeatherType.ClearSky),
+            daily = listOf(
+                com.example.allote.data.DailyWeather("2023-01-01", WeatherType.ClearSky, 30.0, 20.0, 0.0, 15.0, 20.0, "N", emptyList())
+            )
+        ),
+        locationName = "Sample Location",
+        newsState = NewsState(articles = listOf(Article("1", "Sample News 1", "url", "desc", "imgUrl", "date", "source")))
+    )
+    DashboardContent(
+        uiState = uiState,
+        onNavigate = {},
+        onShowHourlyForecast = {},
+        onFetchNextPage = {})
+}
 // ... (CurrentWeatherCard y NewsArticleCard se mantienen igual que en la versión anterior)
 @Composable
 fun CurrentWeatherCard(
@@ -313,6 +363,22 @@ fun CurrentWeatherCard(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun CurrentWeatherCardPreview() {
+    val report = WeatherReport(
+        current = com.example.allote.data.CurrentWeather(25.0, 10.0, WeatherType.ClearSky),
+        daily = listOf(
+            com.example.allote.data.DailyWeather("2023-01-01", WeatherType.ClearSky, 30.0, 20.0, 0.0, 15.0, 20.0, "N", emptyList())
+        )
+    )
+    CurrentWeatherCard(
+        report = report,
+        locationName = "Sample Location",
+        isExpanded = true,
+        onClick = {},
+        onShowHourlyForecast = {})
+}
 @Composable
 private fun InfoColumn(icon: ImageVector, label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -432,6 +498,12 @@ fun EnhancedNewsArticleCard(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun EnhancedNewsArticleCardPreview() {
+    val article = Article("1", "This is a Sample News Title That is Quite Long", "url", "desc", "imgUrl", "date", "Sample Source")
+    EnhancedNewsArticleCard(article = article, onClick = {})
+}
 @Composable
 fun NewsArticleCard(article: Article, onClick: () -> Unit) {
     Card(
@@ -490,6 +562,12 @@ fun NewsArticleCard(article: Article, onClick: () -> Unit) {
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun NewsArticleCardPreview() {
+    val article = Article("1", "Sample News Title", "url", "desc", "imgUrl", "date", "Source")
+    NewsArticleCard(article = article, onClick = {})
+}
 // === COMPONENTES AUXILIARES PARA DASHBOARD ===
 
 @Composable
@@ -560,6 +638,12 @@ fun DashboardHeader(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun DashboardHeaderPreview() {
+    DashboardHeader(greeting = "Buenos días", date = "Lunes, 1 de Enero")
+}
+
 @Composable
 fun QuickNavigationSection(
     onNavigate: (String) -> Unit,
@@ -628,6 +712,12 @@ fun QuickNavigationSection(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun QuickNavigationSectionPreview() {
+    QuickNavigationSection(onNavigate = {})
+}
+
 @Composable
 fun QuickStatsSection(
     uiState: MainUiState,
@@ -645,41 +735,21 @@ fun QuickStatsSection(
             color = MaterialTheme.colorScheme.primary
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            EnhancedStatCard(
-                modifier = Modifier.weight(1f),
-                title = "Pendientes",
-                value = uiState.trabajosPendientes.toString(),
-                subtitle = "%.1f ha".format(uiState.hectareasPendientes),
-                icon = Icons.Default.HourglassTop,
-                color = Color(0xFFFF9800),
-                onClick = { onNavigate(AppDestinations.JOBS_ROUTE) }
-            )
-
-            EnhancedStatCard(
-                modifier = Modifier.weight(1f),
-                title = "Clientes",
-                value = uiState.totalClientes.toString(),
-                subtitle = "Activos",
-                icon = Icons.Default.Group,
-                color = Color(0xFF4CAF50),
-                onClick = { onNavigate(AppDestinations.CLIENTS_ROUTE) }
-            )
-
-            EnhancedStatCard(
-                modifier = Modifier.weight(1f),
-                title = "Saldo",
-                value = if (uiState.saldoGeneral >= 0) "+$${uiState.saldoGeneral.toInt()}" else "-$${kotlin.math.abs(uiState.saldoGeneral.toInt())}",
-                subtitle = uiState.currencySettings.displayCurrency,
-                icon = Icons.Default.AccountBalance,
-                color = if (uiState.saldoGeneral >= 0) Color(0xFF4CAF50) else Color(0xFFE57373),
-                onClick = { onNavigate(AppDestinations.ADMIN_ROUTE) }
-            )
-        }
+        EnhancedStatCard(
+            title = "Pendientes",
+            value = uiState.trabajosPendientes.toString(),
+            subtitle = "%.1f ha".format(uiState.hectareasPendientes),
+            icon = Icons.Default.HourglassTop,
+            color = Color(0xFFFF9800),
+            onClick = { onNavigate(AppDestinations.JOBS_ROUTE) }
+        )
     }
+}
+
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun QuickStatsSectionPreview() {
+    QuickStatsSection(uiState = MainUiState(trabajosPendientes = 5, hectareasPendientes = 120.5), onNavigate = {})
 }
 
 @Composable
@@ -725,6 +795,12 @@ fun SectionHeader(
             )
         }
     }
+}
+
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun SectionHeaderPreview() {
+    SectionHeader(title = "Section Title", subtitle = "Section subtitle", icon = Icons.Default.Info)
 }
 
 @Composable
@@ -779,6 +855,12 @@ fun QuickActionCard(
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun QuickActionCardPreview() {
+    QuickActionCard(icon = Icons.Default.Star, title = "Featured", color = Color.Magenta, onClick = {})
+}
+
 @Composable
 fun EnhancedStatCard(
     modifier: Modifier = Modifier,
@@ -791,7 +873,8 @@ fun EnhancedStatCard(
 ) {
     Card(
         modifier = modifier
-            .height(100.dp)
+            .height(95.dp)
+            .width(110.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -849,4 +932,10 @@ fun EnhancedStatCard(
             }
         }
     }
+}
+
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun EnhancedStatCardPreview() {
+    EnhancedStatCard(title = "Stat Title", value = "123", subtitle = "Stat subtitle", icon = Icons.Default.CheckCircle, color = Color.Green, onClick = {})
 }
