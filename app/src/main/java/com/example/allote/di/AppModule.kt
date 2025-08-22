@@ -78,8 +78,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideProductsRepository(productDao: ProductDao, formulacionDao: FormulacionDao): ProductsRepository {
-        return ProductsRepository(productDao, formulacionDao)
+    fun provideProductsRepository(
+        productDao: ProductDao,
+        formulacionDao: FormulacionDao,
+        @ApplicationContext context: android.content.Context
+    ): ProductsRepository {
+        val vademecumImporter = VademecumImporter(context, productDao, formulacionDao)
+        return ProductsRepository(productDao, formulacionDao, vademecumImporter)
     }
 
     @Provides

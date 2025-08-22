@@ -65,7 +65,7 @@ class RecetasViewModel @Inject constructor(
                 ApplicationType.PULVERIZACION // Por defecto
             }
 
-            val productsToShow = state.availableProducts.filter { it.applicationType == recipeApplicationType }
+            val productsToShow = state.availableProducts.filter { it.applicationType == recipeApplicationType.name }
 
             if (state.productSearchQuery.isBlank()) {
                 productsToShow
@@ -97,7 +97,7 @@ class RecetasViewModel @Inject constructor(
                 val (recipe, recipeProducts) = recipeAndProducts
 
                 val appType = if (job?.tipoAplicacion.equals("Aplicacion solida", true)) ApplicationType.ESPARCIDO else ApplicationType.PULVERIZACION
-                val availableProductsForJob = allProducts.filter { it.applicationType == appType }
+                val availableProductsForJob = allProducts.filter { it.applicationType == appType.name }
 
                 val productosRecetaItems = recipeProducts.mapNotNull { rp ->
                     allProducts.find { it.id == rp.productId }?.let { product ->

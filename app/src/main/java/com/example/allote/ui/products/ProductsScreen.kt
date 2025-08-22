@@ -135,17 +135,9 @@ fun ProductosScreen(
                     }
                 )
 
-                // Add formulaciones access card for pulverización tab
-                if (uiState.selectedTab == ApplicationType.PULVERIZACION) {
-                    FormulacionesAccessCard(
-                        onNavigateToFormulaciones = onNavigateToFormulaciones,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
-
                 if (uiState.isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                } else if (uiState.allProducts.none { it.applicationType == uiState.selectedTab }) {
+                } else if (uiState.allProducts.none { it.applicationType == uiState.selectedTab.name || it.applicationType == "AMBOS" }) {
                     EmptyState("No hay productos", "Añade tu primer producto usando el botón '+'", Icons.Default.Science)
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,7 +165,7 @@ fun ProductosScreen(
                 onSave = { nombre, principio, tipo, formulacionId ->
                     onSaveProduct(Product(
                         nombreComercial = nombre, principioActivo = principio, tipo = tipo,
-                        formulacionId = formulacionId, applicationType = ApplicationType.PULVERIZACION
+                        formulacionId = formulacionId, applicationType = ApplicationType.PULVERIZACION.name
                     ))
                     showAddDialog = false
                 },
@@ -184,12 +176,14 @@ fun ProductosScreen(
                 onDismiss = { showAddDialog = false },
                 onSave = { nombre, tipo ->
                     onSaveProduct(Product(
-                        nombreComercial = nombre, tipo = tipo, applicationType = ApplicationType.ESPARCIDO
+                        nombreComercial = nombre, tipo = tipo, applicationType = ApplicationType.ESPARCIDO.name
                     ))
                     showAddDialog = false
                 },
                 tipos = listOf("Semilla", "Fertilizante", "Cebo")
             )
+
+            ApplicationType.AMBOS -> TODO()
         }
     }
     showEditDeleteDialog?.let { product ->
@@ -208,11 +202,13 @@ private fun HelpDialog(onDismiss: () -> Unit) {
         title = { Text("Ayuda: Catálogo de Productos") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Aquí gestionas tu lista de insumos. Los productos que crees aquí estarán disponibles al momento de armar una receta.")
-                Text("• Pulverización: Productos que se mezclan en un caldo (líquidos, polvos solubles, etc.). Debes asignarles una formulación.")
-                Text("• Esparcido: Productos que se aplican directamente (semillas, fertilizantes granulados, etc.).")
-                Text("• Formulaciones: En la pestaña de Pulverización, puedes acceder a gestionar el orden de mezcla.")
-                Text("Usa el botón (+) para añadir nuevos productos a la pestaña seleccionada.", style = MaterialTheme.typography.bodySmall)
+                Text("Gestiona tu catálogo completo de productos agrícolas:")
+                Text("• Pulverización: Productos para aplicación líquida con formulaciones específicas.")
+                Text("• Esparcido: Productos para aplicación directa (semillas, fertilizantes).")
+                Text("• Vademécum SENASA: Base de datos oficial con +6000 productos registrados.")
+                Text("• Búsqueda: Por nombre comercial, principio activo o número de registro SENASA.")
+                Text("• Formulaciones: Gestiona el orden de mezcla en pulverizaciones.")
+                Text("Usa el botón (+) para agregar productos personalizados.", style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
@@ -242,7 +238,7 @@ fun ProductItem(product: Product, onClick: () -> Unit, onLongClick: () -> Unit) 
             Column(modifier = Modifier.weight(1f).padding(16.dp)) {
                 Text(text = product.nombreComercial, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                if (product.applicationType == ApplicationType.PULVERIZACION) {
+                if (product.applicationType == ApplicationType.PULVERIZACION.name) {
                     Text(text = product.principioActivo ?: "Sin principio activo", style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Text(text = product.tipo, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -325,72 +321,6 @@ fun AddEsparcidoProductDialog(onDismiss: () -> Unit, onSave: (String, String) ->
                     TextButton(onClick = onDismiss) { Text("Cancelar") }
                     Button(onClick = { if (nombreComercial.isNotBlank() && selectedTipo.isNotBlank()) { onSave(nombreComercial, selectedTipo) } }) { Text("Guardar") }
                 }
-            }
-        }
-    }
-}
-
-// --- New Component for Formulaciones Access ---
-
-@Composable
-private fun FormulacionesAccessCard(
-    onNavigateToFormulaciones: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Science,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Gestionar Formulaciones",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Configura el orden de mezcla para productos de pulverización",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Button(
-                onClick = onNavigateToFormulaciones,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Ir")
             }
         }
     }

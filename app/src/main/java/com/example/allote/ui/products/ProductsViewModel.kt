@@ -10,26 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class ProductsUiState(
-    val isLoading: Boolean = true,
-    val allProducts: List<Product> = emptyList(),
-    val formulaciones: List<Formulacion> = emptyList(),
-    val searchQuery: String = "",
-    val selectedTab: ApplicationType = ApplicationType.PULVERIZACION
-) {
-    val filteredProducts: List<Product>
-        get() = allProducts.filter { product ->
-            val matchesTab = product.applicationType == selectedTab
-            val matchesSearch = if (searchQuery.isBlank()) {
-                true
-            } else {
-                product.nombreComercial.contains(searchQuery, ignoreCase = true) ||
-                        (product.principioActivo?.contains(searchQuery, ignoreCase = true) ?: false)
-            }
-            matchesTab && matchesSearch
-        }
-}
+import com.example.allote.ui.products.ProductsUiState
 
 @HiltViewModel
 class ProductsViewModel @Inject constructor(
@@ -45,7 +26,6 @@ class ProductsViewModel @Inject constructor(
     val searchResults: StateFlow<List<Product>> = _searchResults.asStateFlow()
 
     init {
-        // La lógica de combine se queda igual
         combine(repository.getProductsStream(), repository.getFormulacionesStream()) { products, formulations ->
             _uiState.update { currentState ->
                 currentState.copy(
@@ -54,15 +34,24 @@ class ProductsViewModel @Inject constructor(
                     formulaciones = formulations
                 )
             }
+            filterProducts() // Actualizar la lista filtrada cada vez que cambian los productos
         }.launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            repository.importVademecumIfNeeded()
+            updateVademecumCount()
+            filterProducts() // Actualizar después de importar
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+        filterProducts()
     }
 
     fun onTabSelected(tab: ApplicationType) {
         _uiState.update { it.copy(selectedTab = tab) }
+        filterProducts()
     }
 
     fun saveProduct(product: Product) = viewModelScope.launch {
@@ -94,5 +83,53 @@ class ProductsViewModel @Inject constructor(
     // --- NUEVA FUNCIÓN ---
     fun clearSearchResults() {
         _searchResults.value = emptyList()
+    }
+
+    fun importVademecum() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImportingVademecum = true) }
+            try {
+                repository.importVademecumIfNeeded()
+                updateVademecumCount()
+            } catch (e: Exception) {
+                // Manejar error
+            } finally {
+                _uiState.update { it.copy(isImportingVademecum = false) }
+            }
+        }
+    }
+
+    private suspend fun updateVademecumCount() {
+        // Implementar conteo de productos del Vademécum
+        // val count = repository.getVademecumProductsCount()
+        // _uiState.update { it.copy(vademecumProductsCount = count) }
+    }
+
+    private fun filterProducts() {
+        val currentState = _uiState.value
+        val filtered = if (currentState.searchQuery.isBlank()) {
+            currentState.allProducts.filter { product ->
+                when (currentState.selectedTab) {
+                    ApplicationType.PULVERIZACION ->
+                        product.applicationType == ApplicationType.PULVERIZACION.name ||
+                                product.applicationType == ApplicationType.AMBOS.name
+                    ApplicationType.ESPARCIDO ->
+                        product.applicationType == ApplicationType.ESPARCIDO.name ||
+                                product.applicationType == ApplicationType.AMBOS.name
+                    ApplicationType.AMBOS -> true
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                val searchResults = repository.searchProductsByNameAndType(
+                    currentState.searchQuery,
+                    currentState.selectedTab
+                )
+                _uiState.update { it.copy(filteredProducts = searchResults) }
+            }
+            return
+        }
+
+        _uiState.update { it.copy(filteredProducts = filtered) }
     }
 }

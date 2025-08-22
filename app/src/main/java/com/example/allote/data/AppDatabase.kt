@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
         Checklist::class,
         ChecklistItem::class
     ],
-    version = 22, // Incrementado de 21 a 22
+    version = 23, // Incrementado de 22 a 23
     exportSchema = false
 )
 @TypeConverters(Converters::class)

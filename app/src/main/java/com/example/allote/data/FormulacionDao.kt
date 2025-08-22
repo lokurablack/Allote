@@ -36,4 +36,7 @@ interface FormulacionDao {
 
     @Query("SELECT * FROM formulaciones WHERE id = :formulacionId")
     fun getByIdStream(formulacionId: Int): Flow<Formulacion?>
+
+    @Query("SELECT * FROM formulaciones WHERE nombre = :nombre LIMIT 1")
+    suspend fun getByName(nombre: String): Formulacion?
 }
