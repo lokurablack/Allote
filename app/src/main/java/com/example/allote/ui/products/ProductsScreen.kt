@@ -134,23 +134,30 @@ fun ProductosScreen(
                         }
                     }
                 )
+                // Conteo de resultados listados
+                Text(
+                    text = "${uiState.filteredProducts.size} productos",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
                 if (uiState.isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                } else if (uiState.allProducts.none { it.applicationType == uiState.selectedTab.name || it.applicationType == "AMBOS" }) {
+                } else if (uiState.searchQuery.isNotEmpty() && uiState.filteredProducts.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No se encontraron productos para '${uiState.searchQuery}'", modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
+                    }
+                } else if (uiState.filteredProducts.isEmpty()) {
                     EmptyState("No hay productos", "Añade tu primer producto usando el botón '+'", Icons.Default.Science)
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (uiState.searchQuery.isNotEmpty() && uiState.filteredProducts.isEmpty()) {
-                            item { Text("No se encontraron productos para '${uiState.searchQuery}'", modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center) }
-                        } else {
-                            items(uiState.filteredProducts, key = { it.id }) { product ->
-                                ProductItem(
-                                    product = product,
-                                    onClick = { onProductClick(product.id) },
-                                    onLongClick = { showEditDeleteDialog = product }
-                                )
-                            }
+                        items(uiState.filteredProducts, key = { it.id }) { product ->
+                            ProductItem(
+                                product = product,
+                                onClick = { onProductClick(product.id) },
+                                onLongClick = { showEditDeleteDialog = product }
+                            )
                         }
                     }
                 }
@@ -193,7 +200,8 @@ fun ProductosScreen(
             onDelete = { onDeleteProduct(product); showEditDeleteDialog = null }
         )
     }
-}
+
+ }
 
 @Composable
 private fun HelpDialog(onDismiss: () -> Unit) {

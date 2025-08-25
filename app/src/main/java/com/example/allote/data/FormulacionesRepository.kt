@@ -19,10 +19,4 @@ class FormulacionesRepository(private val formulacionDao: FormulacionDao) {
     suspend fun getProductCountForFormulacion(formulacionId: Int): Int {
         return formulacionDao.getProductCountForFormulacion(formulacionId)
     }
-
-    // === NUEVA FUNCIÓN AÑADIDA ===
-    // Devuelve la lista de datos precargados que definimos en AppDatabase.
-    fun getPreloadedFormulaciones(): List<Formulacion> {
-        return AppDatabase.PREPOPULATE_DATA
-    }
 }

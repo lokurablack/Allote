@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
         Checklist::class,
         ChecklistItem::class
     ],
-    version = 23, // Incrementado de 22 a 23
+    version = 24, // Incrementado para añadir unidadDosis en recipe_products
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -56,6 +56,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE jobs ADD COLUMN startDate INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE jobs ADD COLUMN endDate INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Agrega la nueva columna para persistir la unidad de dosis seleccionada
+                db.execSQL("ALTER TABLE recipe_products ADD COLUMN unidadDosis TEXT NOT NULL DEFAULT ''")
             }
         }
 
@@ -283,10 +290,7 @@ abstract class AppDatabase : RoomDatabase() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
                             CoroutineScope(Dispatchers.IO).launch {
-                                PREPOPULATE_DATA.forEach { formulacion ->
-                                    val sql = "INSERT INTO formulaciones (id, nombre, ordenMezcla, tipoUnidad) VALUES (${formulacion.id}, '${formulacion.nombre}', ${formulacion.ordenMezcla}, '${formulacion.tipoUnidad}')"
-                                    db.execSQL(sql)
-                                }
+                                // Eliminada la lista PREPOPULATE_DATA y su uso para precargar formulaciones
                             }
                         }
                     })
@@ -297,7 +301,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_17_18,
                         MIGRATION_18_19,
                         MIGRATION_20_21,
-                        MIGRATION_21_22
+                        MIGRATION_21_22,
+                        MIGRATION_23_24
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -305,20 +310,5 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
-
-        val PREPOPULATE_DATA = listOf(
-            Formulacion(id = 1, nombre = "Agua", ordenMezcla = 1, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 2, nombre = "Compatibilizador de mezcla", ordenMezcla = 2, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 3, nombre = "Corrector/Secuestrante", ordenMezcla = 3, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 4, nombre = "Antiespumante", ordenMezcla = 4, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 5, nombre = "Adyuvante", ordenMezcla = 5, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 6, nombre = "Polvos Mojables/WP", ordenMezcla = 6, tipoUnidad = "SOLIDO"),
-            Formulacion(id = 7, nombre = "Granulos Dispersables/WG", ordenMezcla = 7, tipoUnidad = "SOLIDO"),
-            Formulacion(id = 8, nombre = "Suspensiones Concentradas/SC", ordenMezcla = 8, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 9, nombre = "Concentrados Solubles/EC", ordenMezcla = 9, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 10, nombre = "Liquidos Solubles/SL", ordenMezcla = 10, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 11, nombre = "Aceites", ordenMezcla = 11, tipoUnidad = "LIQUIDO"),
-            Formulacion(id = 12, nombre = "Foliares", ordenMezcla = 12, tipoUnidad = "LIQUIDO")
-        )
     }
 }

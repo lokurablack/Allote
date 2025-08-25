@@ -10,5 +10,6 @@ data class RecipeProduct(
     val productId: Int,
     val dosis: Double,
     val cantidadTotal: Double,
-    val ordenMezclado: Int
+    val ordenMezclado: Int,
+    val unidadDosis: String // "L/ha", "Cc/ha", "Gr/ha", "Kg/ha"
 )

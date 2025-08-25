@@ -53,7 +53,7 @@ fun RecetasScreen(
     onCaudalChange: (String) -> Unit,
     onCaldoPorTachadaChange: (String) -> Unit,
     onCalcularClick: () -> Unit,
-    onAgregarProducto: (Product, Double) -> Unit,
+    onAgregarProducto: (Product, Double, String) -> Unit,
     onEliminarProductoDeReceta: (Int) -> Unit,
     onProductSearchQueryChanged: (String) -> Unit,
     onClearProductSearch: () -> Unit,
@@ -176,8 +176,8 @@ fun RecetasScreen(
             uiState = uiState,
             filteredProducts = filteredProducts,
             onDismiss = { showSelectProductDialog = false },
-            onProductSelected = { product, dose ->
-                onAgregarProducto(product, dose)
+            onProductSelected = { product, dose, unidad ->
+                onAgregarProducto(product, dose, unidad)
                 showSelectProductDialog = false
             },
             onSearchQueryChanged = onProductSearchQueryChanged,
@@ -445,7 +445,10 @@ private fun EnhancedProductsSection(
 
 @Composable
 fun EnhancedProductoRecetaItemView(item: ProductoRecetaItem, onDelete: () -> Unit) {
-    val unidad = if (item.tipoUnidad.equals("SOLIDO", ignoreCase = true)) "kgs" else "Litros"
+    val unidad = when (item.unidadDosis) {
+        "Gr/ha", "Kg/ha" -> "Kgs"
+        else -> "Litros"
+    }
     val bandaColorMap = remember {
         mapOf(
             "ia" to Color(0xFFD32F2F), "ib" to Color(0xFFD32F2F),
@@ -834,7 +837,7 @@ fun SelectProductDialog(
     uiState: RecetasUiState,
     filteredProducts: List<Product>,
     onDismiss: () -> Unit,
-    onProductSelected: (Product, Double) -> Unit,
+    onProductSelected: (Product, Double, String) -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onClearSearch: () -> Unit
 ) {
@@ -890,8 +893,8 @@ fun SelectProductDialog(
             product = product,
             isSolidProduct = isSolid,
             onDismiss = { productForDoseDialog = null },
-            onConfirm = { dose ->
-                onProductSelected(product, dose)
+            onConfirm = { dose, unidad ->
+                onProductSelected(product, dose, unidad)
                 productForDoseDialog = null
             }
         )
@@ -929,14 +932,19 @@ fun ProductSelectionItem(product: Product, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoseInputDialog(
     product: Product,
     isSolidProduct: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (Double) -> Unit
+    onConfirm: (Double, String) -> Unit
 ) {
     var doseText by remember { mutableStateOf("") }
+    // Unidad por defecto basada en formulación
+    var expanded by remember { mutableStateOf(false) }
+    val unidades = listOf("L/ha", "Cc/ha", "Gr/ha", "Kg/ha")
+    var selectedUnidad by remember { mutableStateOf(if (isSolidProduct) "Gr/ha" else "L/ha") }
     val isDoseValid = doseText.toDoubleOrNull()?.let { it > 0 } ?: false
 
     AlertDialog(
@@ -949,14 +957,44 @@ fun DoseInputDialog(
                 OutlinedTextField(
                     value = doseText,
                     onValueChange = { doseText = it },
-                    label = { Text(if (isSolidProduct) "Dosis (gr/ha)" else "Dosis (L/ha)") },
+                    label = { Text("Dosis (${selectedUnidad})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
+
+                Spacer(Modifier.height(12.dp))
+                // Selector de unidad
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        readOnly = true,
+                        value = selectedUnidad,
+                        onValueChange = {},
+                        label = { Text("Unidad de dosis") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        unidades.forEach { unidad ->
+                            DropdownMenuItem(
+                                text = { Text(unidad) },
+                                onClick = {
+                                    selectedUnidad = unidad
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(doseText.toDouble()) }, enabled = isDoseValid) {
+            Button(onClick = { onConfirm(doseText.toDouble(), selectedUnidad) }, enabled = isDoseValid) {
                 Text("Confirmar")
             }
         },

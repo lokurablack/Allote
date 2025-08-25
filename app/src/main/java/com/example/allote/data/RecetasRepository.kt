@@ -58,7 +58,8 @@ class RecetasRepository(
                 val rp = RecipeProduct(
                     id = item.id.takeIf { it != 0 } ?: existingDbProducts.find { it.productId == item.productId }?.id ?: 0,
                     recipeId = recipeId, productId = item.productId, dosis = item.dosis,
-                    cantidadTotal = item.cantidadTotal, ordenMezclado = item.ordenMezclado
+                    cantidadTotal = item.cantidadTotal, ordenMezclado = item.ordenMezclado,
+                    unidadDosis = item.unidadDosis
                 )
                 recipeDao.insertRecipeProduct(rp)
             }

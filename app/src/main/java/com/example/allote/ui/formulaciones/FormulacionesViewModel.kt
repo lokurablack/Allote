@@ -21,26 +21,6 @@ class FormulacionesViewModel @Inject constructor(private val repository: Formula
     private val toDeleteInDb = mutableListOf<Formulacion>()
     private var hasUnsavedChanges = false
 
-    init {
-        loadInitialFormulaciones()
-    }
-
-    private fun loadInitialFormulaciones() {
-        viewModelScope.launch {
-            val formulacionesEnDB = repository.getFormulacionesStream().first()
-            if (formulacionesEnDB.isEmpty()) {
-                val preloadedData = repository.getPreloadedFormulaciones()
-                _formulaciones.value = preloadedData
-                // Guardamos los datos pre-cargados la primera vez
-                saveChanges {}
-            } else {
-                // --- ¡ESTA ES LA LÍNEA CORREGIDA! ---
-                // Si hay datos en la DB, cargamos ESOS datos.
-                _formulaciones.value = formulacionesEnDB
-            }
-        }
-    }
-
     private fun reorderAndSetState(newList: List<Formulacion>) {
         val reorderedList = newList.mapIndexed { index, formulacion ->
             formulacion.copy(ordenMezcla = index + 1)

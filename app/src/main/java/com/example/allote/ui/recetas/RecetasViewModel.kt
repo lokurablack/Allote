@@ -10,12 +10,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.text.Normalizer
 
 data class ProductoRecetaItem(
     val id: Int,
     val productId: Int,
     val nombreComercial: String,
     val dosis: Double,
+    val unidadDosis: String, // "L/ha", "Cc/ha", "Gr/ha", "Kg/ha"
     var cantidadTotal: Double,
     val ordenMezclado: Int,
     val bandaToxicologica: String?,
@@ -59,22 +61,33 @@ class RecetasViewModel @Inject constructor(
 
     val filteredAvailableProducts: StateFlow<List<Product>> = uiState
         .map { state ->
-            val recipeApplicationType = if (state.productosEnReceta.any { it.tipoUnidad == "SOLIDO" }) {
-                ApplicationType.PULVERIZACION // Permite sólidos solubles
+            // availableProducts ya está filtrado por tipo de aplicación del trabajo en init{}
+            val base = state.availableProducts
+            val q = state.productSearchQuery.trim().lowercase()
+            val qAscii = Normalizer.normalize(q, Normalizer.Form.NFD).replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+            val qNorm = qAscii.replace("[^a-z0-9]".toRegex(), "")
+            val filtered = if (q.isBlank()) {
+                base
             } else {
-                ApplicationType.PULVERIZACION // Por defecto
-            }
+                base.filter {
+                    val nombre = it.nombreComercial.lowercase()
+                    val nombreAscii = Normalizer.normalize(nombre, Normalizer.Form.NFD).replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+                    val nombreNorm = nombreAscii.replace("[^a-z0-9]".toRegex(), "")
+                    val pa = it.principioActivo?.lowercase()
+                    val paAscii = pa?.let { s -> Normalizer.normalize(s, Normalizer.Form.NFD).replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "") }
+                    val paNorm = paAscii?.replace("[^a-z0-9]".toRegex(), "")
+                    val reg = it.numeroRegistroSenasa?.lowercase()
+                    val regAscii = reg?.let { s -> Normalizer.normalize(s, Normalizer.Form.NFD).replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "") }
+                    val regNorm = regAscii?.replace("[^a-z0-9]".toRegex(), "")
 
-            val productsToShow = state.availableProducts.filter { it.applicationType == recipeApplicationType.name }
-
-            if (state.productSearchQuery.isBlank()) {
-                productsToShow
-            } else {
-                productsToShow.filter {
-                    it.nombreComercial.contains(state.productSearchQuery, ignoreCase = true) ||
-                            it.principioActivo?.contains(state.productSearchQuery, ignoreCase = true) == true
+                    // Coincidir por nombre/principio activo (texto) o por número de registro (normalizado)
+                    nombre.contains(q) || nombreAscii.contains(qAscii) || nombreNorm.contains(qNorm) ||
+                            (pa?.contains(q) == true) || (paAscii?.contains(qAscii) == true) || (paNorm?.contains(qNorm) == true) ||
+                            (reg?.contains(q) == true) || (regAscii?.contains(qAscii) == true) || (regNorm?.contains(qNorm) == true)
                 }
             }
+            println("[Recetas] filter base=${base.size}, query=\"$q\" -> result=${filtered.size}")
+            filtered
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -97,13 +110,25 @@ class RecetasViewModel @Inject constructor(
                 val (recipe, recipeProducts) = recipeAndProducts
 
                 val appType = if (job?.tipoAplicacion.equals("Aplicacion solida", true)) ApplicationType.ESPARCIDO else ApplicationType.PULVERIZACION
-                val availableProductsForJob = allProducts.filter { it.applicationType == appType.name }
+                val availableProductsForJob = allProducts.filter { it.applicationType == appType.name || it.applicationType == ApplicationType.AMBOS.name }
 
                 val productosRecetaItems = recipeProducts.mapNotNull { rp ->
                     allProducts.find { it.id == rp.productId }?.let { product ->
                         val formulacion = allFormulations.find { f -> f.id == product.formulacionId }
                         val tipoUnidad = formulacion?.tipoUnidad ?: "LIQUIDO"
-                        ProductoRecetaItem(rp.id, rp.productId, product.nombreComercial, rp.dosis, rp.cantidadTotal, formulacion?.ordenMezcla ?: 99, product.bandaToxicologica, tipoUnidad)
+                        // Cargar unidad guardada; si viniera en blanco (escenario antiguo), inferir por formulación
+                        val unidadCargada = rp.unidadDosis.ifBlank { if (tipoUnidad.equals("SOLIDO", true)) "Gr/ha" else "L/ha" }
+                        ProductoRecetaItem(
+                            rp.id,
+                            rp.productId,
+                            product.nombreComercial,
+                            rp.dosis,
+                            unidadCargada,
+                            rp.cantidadTotal,
+                            formulacion?.ordenMezcla ?: 99,
+                            product.bandaToxicologica,
+                            tipoUnidad
+                        )
                     }
                 }
 
@@ -132,15 +157,18 @@ class RecetasViewModel @Inject constructor(
     fun onCaudalChange(newValue: String) { _uiState.update { it.copy(caudalText = newValue, summaryIsDirty = true) } }
     fun onCaldoPorTachadaChange(newValue: String) { _uiState.update { it.copy(caldoPorTachadaText = newValue, summaryIsDirty = true) } }
 
-    fun onProductSearchQueryChanged(query: String) { _uiState.update { it.copy(productSearchQuery = query) } }
+    fun onProductSearchQueryChanged(query: String) {
+        println("[Recetas] search query=\"$query\"")
+        _uiState.update { it.copy(productSearchQuery = query) }
+    }
     fun clearProductSearch() { _uiState.update { it.copy(productSearchQuery = "") } }
 
-    fun agregarProducto(product: Product, dosis: Double) {
+    fun agregarProducto(product: Product, dosis: Double, unidad: String) {
         val allFormulations = _uiState.value.allFormulations
         val formulacion = allFormulations.find { it.id == product.formulacionId }
         val tipoUnidad = formulacion?.tipoUnidad ?: "LIQUIDO"
         val ordenMezclado = formulacion?.ordenMezcla ?: 99
-        val newItem = ProductoRecetaItem(0, product.id, product.nombreComercial, dosis, 0.0, ordenMezclado, product.bandaToxicologica, tipoUnidad)
+        val newItem = ProductoRecetaItem(0, product.id, product.nombreComercial, dosis, unidad, 0.0, ordenMezclado, product.bandaToxicologica, tipoUnidad)
 
         val updatedList = (_uiState.value.productosEnReceta + newItem).sortedBy { it.ordenMezclado }
         _uiState.update { it.copy(productosEnReceta = updatedList, summaryIsDirty = true) }
@@ -188,10 +216,12 @@ class RecetasViewModel @Inject constructor(
         resumenBuilder.append("🔍 RESUMEN DE LA RECETA\n")
 
         val productosCalculados = productosEnReceta.map { item ->
-            val cantidadTotal = if (item.tipoUnidad.equals("SOLIDO", ignoreCase = true)) {
-                (item.dosis * hectareas) / 1000 // Dosis en gr/ha -> total en kg
-            } else {
-                item.dosis * hectareas // Dosis en L/ha -> total en L
+            val unidad = item.unidadDosis.trim()
+            val cantidadTotal = when (unidad) {
+                "Gr/ha" -> (item.dosis * hectareas) / 1000.0 // total en Kg
+                "Kg/ha" -> item.dosis * hectareas // total en Kg
+                "Cc/ha" -> (item.dosis * hectareas) / 1000.0 // total en Litros (1000 cc = 1 L)
+                else /* "L/ha" */ -> item.dosis * hectareas // total en Litros
             }
             item.copy(cantidadTotal = cantidadTotal)
         }
@@ -225,7 +255,8 @@ class RecetasViewModel @Inject constructor(
             }
         } else {
             val totalCaldo = caudal * hectareas
-            val totalProductosLiquidos = productosCalculados.filter { it.tipoUnidad == "LIQUIDO" }.sumOf { it.cantidadTotal }
+            // Consideramos líquidos los que fueron medidos en L/ha o Cc/ha
+            val totalProductosLiquidos = productosCalculados.filter { it.unidadDosis == "L/ha" || it.unidadDosis == "Cc/ha" }.sumOf { it.cantidadTotal }
             val agua = totalCaldo - totalProductosLiquidos
 
             if (agua < 0) return Pair(productosCalculados, "Error: La cantidad de productos supera el total del caldo.")
@@ -241,8 +272,8 @@ class RecetasViewModel @Inject constructor(
                 resumenBuilder.append("💧 Carga única\n")
                 resumenBuilder.append("• Agua: %.2f L\n".format(agua))
                 productosCalculados.sortedBy { it.ordenMezclado }.forEach {
-                    val unidad = if (it.tipoUnidad == "SOLIDO") "Kgs" else "Litros"
-                    resumenBuilder.append("• %s: %.2f %s\n".format(it.nombreComercial, it.cantidadTotal, unidad))
+                    val unidadSalida = if (it.unidadDosis == "Gr/ha" || it.unidadDosis == "Kg/ha") "Kgs" else "Litros"
+                    resumenBuilder.append("• %s: %.2f %s\n".format(it.nombreComercial, it.cantidadTotal, unidadSalida))
                 }
             } else {
                 val numCargasCompletas = (totalCaldo / capacidadTachada).toInt()
@@ -254,8 +285,8 @@ class RecetasViewModel @Inject constructor(
                     resumenBuilder.append("💧 Agua: %.2f Litros\n".format(aguaPorTachada))
                     productosCalculados.sortedBy { it.ordenMezclado }.forEach { producto ->
                         val cantidadPorTachada = producto.cantidadTotal / totalCaldo * capacidadTachada
-                        val unidad = if (producto.tipoUnidad == "SOLIDO") "Kgs" else "Litros"
-                        resumenBuilder.append("• %s: %.2f %s\n".format(producto.nombreComercial, cantidadPorTachada, unidad))
+                        val unidadSalida = if (producto.unidadDosis == "Gr/ha" || producto.unidadDosis == "Kg/ha") "Kgs" else "Litros"
+                        resumenBuilder.append("• %s: %.2f %s\n".format(producto.nombreComercial, cantidadPorTachada, unidadSalida))
                     }
                 }
                 if (cargaFinal > 0.01) {
@@ -264,8 +295,8 @@ class RecetasViewModel @Inject constructor(
                     resumenBuilder.append("💧 Agua: %.2f Litros\n".format(aguaCargaFinal))
                     productosCalculados.sortedBy { it.ordenMezclado }.forEach { producto ->
                         val cantidadCargaFinal = producto.cantidadTotal / totalCaldo * cargaFinal
-                        val unidad = if (producto.tipoUnidad == "SOLIDO") "Kgs" else "Litros"
-                        resumenBuilder.append("• %s: %.2f %s\n".format(producto.nombreComercial, cantidadCargaFinal, unidad))
+                        val unidadSalida = if (producto.unidadDosis == "Gr/ha" || producto.unidadDosis == "Kg/ha") "Kgs" else "Litros"
+                        resumenBuilder.append("• %s: %.2f %s\n".format(producto.nombreComercial, cantidadCargaFinal, unidadSalida))
                     }
                 }
             }
