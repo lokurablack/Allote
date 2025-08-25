@@ -501,12 +501,9 @@ fun EnhancedProductoRecetaItemView(item: ProductoRecetaItem, onDelete: () -> Uni
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "%.2f %s".format(
-                                item.dosis,
-                                if (item.tipoUnidad.equals("SOLIDO", ignoreCase = true)) "Grs/ha" else "Lts/ha"
-                            ),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
+                            text = "%.2f %s".format(item.dosis, item.unidadDosis),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 

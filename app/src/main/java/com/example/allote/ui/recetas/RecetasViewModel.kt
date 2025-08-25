@@ -115,9 +115,9 @@ class RecetasViewModel @Inject constructor(
                 val productosRecetaItems = recipeProducts.mapNotNull { rp ->
                     allProducts.find { it.id == rp.productId }?.let { product ->
                         val formulacion = allFormulations.find { f -> f.id == product.formulacionId }
-                        val tipoUnidad = formulacion?.tipoUnidad ?: "LIQUIDO"
-                        // Cargar unidad guardada; si viniera en blanco (escenario antiguo), inferir por formulación
-                        val unidadCargada = rp.unidadDosis.ifBlank { if (tipoUnidad.equals("SOLIDO", true)) "Gr/ha" else "L/ha" }
+                        val tipoUnidadFormulacion = formulacion?.tipoUnidad ?: "LIQUIDO"
+                        val unidadCargada = rp.unidadDosis.ifBlank { if (tipoUnidadFormulacion.equals("SOLIDO", true)) "Gr/ha" else "L/ha" }
+                        val tipoUnidad = if (unidadCargada == "Gr/ha" || unidadCargada == "Kg/ha") "SOLIDO" else tipoUnidadFormulacion
                         ProductoRecetaItem(
                             rp.id,
                             rp.productId,
@@ -166,7 +166,8 @@ class RecetasViewModel @Inject constructor(
     fun agregarProducto(product: Product, dosis: Double, unidad: String) {
         val allFormulations = _uiState.value.allFormulations
         val formulacion = allFormulations.find { it.id == product.formulacionId }
-        val tipoUnidad = formulacion?.tipoUnidad ?: "LIQUIDO"
+        // Si la unidad seleccionada es Gr/ha o Kg/ha, forzar tipoUnidad a SOLIDO
+        val tipoUnidad = if (unidad == "Gr/ha" || unidad == "Kg/ha") "SOLIDO" else (formulacion?.tipoUnidad ?: "LIQUIDO")
         val ordenMezclado = formulacion?.ordenMezcla ?: 99
         val newItem = ProductoRecetaItem(0, product.id, product.nombreComercial, dosis, unidad, 0.0, ordenMezclado, product.bandaToxicologica, tipoUnidad)
 
@@ -265,7 +266,7 @@ class RecetasViewModel @Inject constructor(
             resumenBuilder.append("Total Agua: %.2f Litros\n".format(agua))
             resumenBuilder.append("Total Productos: %.2f Litros + %.2f Kgs\n".format(
                 totalProductosLiquidos,
-                productosCalculados.filter { it.tipoUnidad == "SOLIDO" }.sumOf { it.cantidadTotal }
+                productosCalculados.filter { it.tipoUnidad.equals("SOLIDO", ignoreCase = true) }.sumOf { it.cantidadTotal }
             ))
 
             if (capacidadTachada == null || capacidadTachada <= 0 || totalCaldo <= capacidadTachada) {
