@@ -202,6 +202,16 @@ class RecetasViewModel @Inject constructor(
             )
             val totalMezcla = if (isSolidApplication.value) productosCalculados.sumOf { it.cantidadTotal } else caudal * hectareas
 
+            // Actualizar el estado inmediatamente con el resumen calculado
+            _uiState.update { 
+                it.copy(
+                    resumenActual = resumenFinal,
+                    summaryIsDirty = false,
+                    productosEnReceta = productosCalculados.sortedBy { prod -> prod.ordenMezclado }
+                )
+            }
+
+            // Guardar en la base de datos en segundo plano
             repository.saveFullRecipe(jobId, state.receta, hectareas, caudal, capacidadTachada, totalMezcla, resumenFinal, productosCalculados)
         }
     }
