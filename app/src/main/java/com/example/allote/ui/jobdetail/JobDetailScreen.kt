@@ -45,7 +45,9 @@ fun JobDetailScreen(
     onUpdateLocation: (lat: Double, lng: Double) -> Unit,
     onNavigate: (route: String) -> Unit,
     onDaySelected: (DailyWeather) -> Unit,
-    onDismissHourlyDialog: () -> Unit
+    onDismissHourlyDialog: () -> Unit,
+    onShowLoteSelectorForRecipe: () -> Unit,
+    onDismissLoteSelector: () -> Unit
 ) {
     var showLocationDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -96,7 +98,9 @@ fun JobDetailScreen(
                 JobActionMenu(
                     jobId = job.id,
                     onNavigate = onNavigate,
-                    onLocationButtonClick = { showLocationDialog = true }
+                    onLocationButtonClick = { showLocationDialog = true },
+                    lotes = uiState.lotes,
+                    onShowLoteSelectorForRecipe = onShowLoteSelectorForRecipe
                 )
                 uiState.forecast?.let { forecast ->
                     ForecastSection(
@@ -135,8 +139,114 @@ fun JobDetailScreen(
                     }
                 }
             }
+
+            // Diálogo selector de lotes para recetas
+            if (uiState.showLoteSelectorForRecipe) {
+                LoteSelectorDialog(
+                    lotes = uiState.lotes,
+                    jobId = job.id,
+                    onLoteSelected = { loteId ->
+                        onDismissLoteSelector()
+                        onNavigate(
+                            AppDestinations.RECETAS_ROUTE
+                                .replace("{${AppDestinations.JOB_ID_ARG}}", job.id.toString())
+                                .replace("{${AppDestinations.LOTE_ID_ARG}}", loteId.toString())
+                        )
+                    },
+                    onDismiss = onDismissLoteSelector,
+                    onCreateRecipeForAll = {
+                        onDismissLoteSelector()
+                        onNavigate(
+                            AppDestinations.RECETAS_ROUTE
+                                .replace("{${AppDestinations.JOB_ID_ARG}}", job.id.toString())
+                                .replace("{${AppDestinations.LOTE_ID_ARG}}", "0")
+                        )
+                    }
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun LoteSelectorDialog(
+    lotes: List<com.example.allote.data.Lote>,
+    jobId: Int,
+    onLoteSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    onCreateRecipeForAll: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Seleccionar Lote") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Text(
+                        "Este trabajo está dividido en lotes. ¿Para qué lote deseas crear/ver la receta?",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(lotes) { lote ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLoteSelected(lote.id) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = lote.nombre,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${lote.hectareas} has",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onCreateRecipeForAll,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Crear receta general (sin lote específico)")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable
@@ -398,7 +508,13 @@ private fun JobDetailsCard(job: Job) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun JobActionMenu(jobId: Int, onNavigate: (String) -> Unit, onLocationButtonClick: () -> Unit) {
+private fun JobActionMenu(
+    jobId: Int,
+    onNavigate: (String) -> Unit,
+    onLocationButtonClick: () -> Unit,
+    lotes: List<com.example.allote.data.Lote>,
+    onShowLoteSelectorForRecipe: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "Acciones Disponibles",
@@ -441,7 +557,18 @@ private fun JobActionMenu(jobId: Int, onNavigate: (String) -> Unit, onLocationBu
                     title = "Recetas",
                     subtitle = "Mezclas",
                     color = Color(0xFF9C27B0),
-                    onClick = { onNavigate(AppDestinations.RECETAS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+                    onClick = {
+                        // Si hay lotes, mostrar selector; si no, ir directo a recetas
+                        if (lotes.isNotEmpty()) {
+                            onShowLoteSelectorForRecipe()
+                        } else {
+                            onNavigate(
+                                AppDestinations.RECETAS_ROUTE
+                                    .replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())
+                                    .replace("{${AppDestinations.LOTE_ID_ARG}}", "0")
+                            )
+                        }
+                    }
                 )
                 ActionCard(
                     modifier = Modifier.weight(1f),
@@ -472,6 +599,20 @@ private fun JobActionMenu(jobId: Int, onNavigate: (String) -> Unit, onLocationBu
                     subtitle = "Gestionar",
                     color = Color(0xFF795548),
                     onClick = { onNavigate(AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Flight,
+                    title = "Planificación",
+                    subtitle = "Optimizar",
+                    color = Color(0xFF3F51B5),
+                    onClick = { onNavigate(AppDestinations.WORK_PLAN_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString()).replace("{${AppDestinations.LOTE_ID_ARG}}", "0")) }
                 )
             }
         }

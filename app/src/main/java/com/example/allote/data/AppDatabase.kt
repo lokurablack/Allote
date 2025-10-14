@@ -27,9 +27,11 @@ import kotlinx.coroutines.launch
         MovimientoContable::class,
         DocumentoMovimiento::class,
         Checklist::class,
-        ChecklistItem::class
+        ChecklistItem::class,
+        WorkPlan::class,
+        FlightSegment::class
     ],
-    version = 24, // Incrementado para añadir unidadDosis en recipe_products
+    version = 28, // WorkPlan y FlightSegment con mejoras de planificacion y perimetros
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,6 +49,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun movimientoContableDao(): MovimientoContableDao
     abstract fun documentoMovimientoDao(): DocumentoMovimientoDao
     abstract fun checklistDao(): ChecklistDao
+    abstract fun workPlanDao(): WorkPlanDao
+    abstract fun flightSegmentDao(): FlightSegmentDao
 
     companion object {
         @Volatile
@@ -63,6 +67,83 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Agrega la nueva columna para persistir la unidad de dosis seleccionada
                 db.execSQL("ALTER TABLE recipe_products ADD COLUMN unidadDosis TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Añadir loteId a recipes para vincular recetas a lotes específicos
+                db.execSQL("ALTER TABLE recipes ADD COLUMN loteId INTEGER DEFAULT NULL")
+            }
+        }
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS work_plans (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        jobId INTEGER NOT NULL,
+                        loteId INTEGER,
+                        fechaCreacion INTEGER NOT NULL,
+                        fechaModificacion INTEGER NOT NULL,
+                        autonomiaBateria INTEGER NOT NULL,
+                        capacidadTanque REAL NOT NULL,
+                        interlineado REAL NOT NULL,
+                        velocidadTrabajo REAL NOT NULL,
+                        tiempoReabastecimiento REAL NOT NULL,
+                        caudalAplicacion REAL NOT NULL,
+                        extensionEsteOeste REAL NOT NULL,
+                        extensionNorteSur REAL NOT NULL,
+                        hectareasTotales REAL NOT NULL,
+                        latReabastecedor REAL NOT NULL,
+                        lngReabastecedor REAL NOT NULL,
+                        direccionViento REAL NOT NULL,
+                        velocidadViento REAL NOT NULL,
+                        totalVuelos INTEGER NOT NULL,
+                        tiempoTotalEstimado INTEGER NOT NULL,
+                        distanciaTotalRecorrida REAL NOT NULL,
+                        numeroReabastecimientos INTEGER NOT NULL,
+                        direccionPasadas TEXT NOT NULL,
+                        ordenPasadas TEXT NOT NULL,
+                        FOREIGN KEY(jobId) REFERENCES jobs(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_work_plans_jobId ON work_plans (jobId)")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS flight_segments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        workPlanId INTEGER NOT NULL,
+                        ordenVuelo INTEGER NOT NULL,
+                        latInicio REAL NOT NULL,
+                        lngInicio REAL NOT NULL,
+                        latFin REAL NOT NULL,
+                        lngFin REAL NOT NULL,
+                        distancia REAL NOT NULL,
+                        tiempoVuelo INTEGER NOT NULL,
+                        areaCubierta REAL NOT NULL,
+                        productoPulverizado REAL NOT NULL,
+                        requiereReabastecimiento INTEGER NOT NULL,
+                        tipoReabastecimiento TEXT,
+                        comentario TEXT,
+                        FOREIGN KEY(workPlanId) REFERENCES work_plans(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_flight_segments_workPlanId ON flight_segments (workPlanId)")
+            }
+        }
+
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE work_plans ADD COLUMN interlineado REAL NOT NULL DEFAULT 7.0")
+                db.execSQL("ALTER TABLE work_plans ADD COLUMN velocidadTrabajo REAL NOT NULL DEFAULT 18.0")
+                db.execSQL("ALTER TABLE work_plans ADD COLUMN tiempoReabastecimiento REAL NOT NULL DEFAULT 3.0")
+            }
+        }
+
+        private val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE work_plans ADD COLUMN numeroDrones INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE work_plans ADD COLUMN boundaryGeoJson TEXT")
             }
         }
 
@@ -302,7 +383,11 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_18_19,
                         MIGRATION_20_21,
                         MIGRATION_21_22,
-                        MIGRATION_23_24
+                        MIGRATION_23_24,
+                        MIGRATION_24_25,
+                        MIGRATION_25_26,
+                        MIGRATION_26_27,
+                        MIGRATION_27_28
                     )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -312,3 +397,6 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+
+
+

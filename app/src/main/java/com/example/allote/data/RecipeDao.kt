@@ -16,6 +16,16 @@ interface RecipeDao {
     @Query("SELECT * FROM recipes WHERE jobId = :jobId LIMIT 1")
     suspend fun getRecipeByJobId(jobId: Int): Recipe?
 
+    // Nuevas consultas para recetas por lote
+    @Query("SELECT * FROM recipes WHERE loteId = :loteId LIMIT 1")
+    fun getRecipeByLoteIdStream(loteId: Int): Flow<Recipe?>
+
+    @Query("SELECT * FROM recipes WHERE loteId = :loteId LIMIT 1")
+    suspend fun getRecipeByLoteId(loteId: Int): Recipe?
+
+    @Query("SELECT * FROM recipes WHERE jobId = :jobId")
+    fun getAllRecipesByJobIdStream(jobId: Int): Flow<List<Recipe>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecipe(recipe: Recipe): Long
 

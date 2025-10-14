@@ -122,8 +122,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideJobDetailRepository(jobDao: JobDao, jobParametrosDao: JobParametrosDao): JobDetailRepository {
-        return JobDetailRepository(jobDao, jobParametrosDao)
+    fun provideJobDetailRepository(jobDao: JobDao, jobParametrosDao: JobParametrosDao, loteDao: LoteDao): JobDetailRepository {
+        return JobDetailRepository(jobDao, jobParametrosDao, loteDao)
     }
 
     @Provides
@@ -145,9 +145,10 @@ object AppModule {
         recipeDao: RecipeDao,
         productDao: ProductDao,
         formulacionDao: FormulacionDao,
+        loteDao: LoteDao,
         appDatabase: AppDatabase
     ): RecetasRepository {
-        return RecetasRepository(jobDao, recipeDao, productDao, formulacionDao, appDatabase)
+        return RecetasRepository(jobDao, recipeDao, productDao, formulacionDao, loteDao, appDatabase)
     }
 
     @Provides
@@ -246,6 +247,24 @@ object AppModule {
     @Provides
     @Singleton
     fun provideChecklistsRepository(dao: ChecklistDao): ChecklistsRepository = ChecklistsRepository(dao)
+
+    @Provides
+    fun provideWorkPlanDao(db: AppDatabase): WorkPlanDao = db.workPlanDao()
+
+    @Provides
+    fun provideFlightSegmentDao(db: AppDatabase): FlightSegmentDao = db.flightSegmentDao()
+
+    @Provides
+    @Singleton
+    fun provideWorkPlanRepository(
+        workPlanDao: WorkPlanDao,
+        flightSegmentDao: FlightSegmentDao,
+        jobDao: JobDao,
+        loteDao: LoteDao,
+        jobParametrosDao: JobParametrosDao
+    ): WorkPlanRepository {
+        return WorkPlanRepository(workPlanDao, flightSegmentDao, jobDao, loteDao, jobParametrosDao)
+    }
 
     @Provides
     @Singleton

@@ -12,6 +12,9 @@ interface JobParametrosDao {
     @Query("SELECT * FROM job_parametros WHERE jobId = :jobId LIMIT 1")
     fun getByJobIdStream(jobId: Int): Flow<JobParametros?>
 
+    @Query("SELECT * FROM job_parametros WHERE jobId = :jobId LIMIT 1")
+    suspend fun getByJobId(jobId: Int): JobParametros?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(parametros: JobParametros)
 

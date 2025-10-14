@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(gradlew.bat assembleDebug:*)",
+      "Bash(Select-String -Pattern \"RecetasViewModel\" -Context 5)",
+      "Bash(./gradlew:*)",
+      "Bash(./gradlew build:*)",
+      "Bash(adb shell pm clear:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

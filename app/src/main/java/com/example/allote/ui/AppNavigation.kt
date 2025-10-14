@@ -52,6 +52,8 @@ import com.example.allote.ui.recetas.RecetasViewModel
 import com.example.allote.ui.settings.SettingsScreen
 import com.example.allote.ui.settings.SettingsViewModel
 import com.example.allote.ui.splash.SplashScreen
+import com.example.allote.ui.workplan.WorkPlanScreen
+import com.example.allote.ui.workplan.WorkPlanViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
@@ -69,11 +71,12 @@ object AppDestinations {
     const val JOB_ID_ARG = "jobId"
     const val CLIENT_ID_ARG = "clientId"
     const val PRODUCT_ID_ARG = "productId"
+    const val LOTE_ID_ARG = "loteId"
     const val JOB_DETAIL_ROUTE = "job_detail/{$JOB_ID_ARG}"
     const val CLIENT_ADMIN_ROUTE = "client_admin/{$CLIENT_ID_ARG}"
     const val CLIENT_JOBS_ROUTE = "client_jobs/{$CLIENT_ID_ARG}"
     const val CLIENT_CONTABILIDAD_ROUTE = "client_contabilidad/{$CLIENT_ID_ARG}"
-    const val RECETAS_ROUTE = "recetas/{$JOB_ID_ARG}"
+    const val RECETAS_ROUTE = "recetas/{$JOB_ID_ARG}?loteId={$LOTE_ID_ARG}"
     const val ADMINISTRACION_ROUTE = "administracion/{$JOB_ID_ARG}"
     const val ADMINISTRACION_RESUMEN_ROUTE = "administracion_resumen/{$JOB_ID_ARG}"
     const val PDF_VIEWER_ROUTE = "pdf_viewer/{$JOB_ID_ARG}"
@@ -84,6 +87,7 @@ object AppDestinations {
     const val MOVIMIENTO_ID_ARG = "movimientoId"
     const val DOCUMENT_VIEWER_ROUTE = "document_viewer/{$MOVIMIENTO_ID_ARG}"
     const val CHECKLISTS_ROUTE = "checklists"
+    const val WORK_PLAN_ROUTE = "work_plan/{$JOB_ID_ARG}?loteId={$LOTE_ID_ARG}"
 }
 
 @Composable
@@ -254,7 +258,11 @@ fun AppNavHost(
                     navController.navigate(AppDestinations.JOB_DETAIL_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString()))
                 },
                 onViewRecipes = { jobId ->
-                    navController.navigate(AppDestinations.RECETAS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString()))
+                    navController.navigate(
+                        AppDestinations.RECETAS_ROUTE
+                            .replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())
+                            .replace("{${AppDestinations.LOTE_ID_ARG}}", "0")
+                    )
                 },
                 onNavigateToContabilidad = { clientId ->
                     navController.navigate(AppDestinations.CLIENT_CONTABILIDAD_ROUTE.replace("{${AppDestinations.CLIENT_ID_ARG}}", clientId.toString()))
@@ -316,7 +324,14 @@ fun AppNavHost(
         }
         composable(
             route = AppDestinations.RECETAS_ROUTE,
-            arguments = listOf(navArgument(AppDestinations.JOB_ID_ARG) { type = NavType.IntType })
+            arguments = listOf(
+                navArgument(AppDestinations.JOB_ID_ARG) { type = NavType.IntType },
+                navArgument(AppDestinations.LOTE_ID_ARG) {
+                    type = NavType.IntType
+                    defaultValue = 0
+                    nullable = false
+                }
+            )
         ) { backStackEntry -> // Obtener el backStackEntry
             val viewModel: RecetasViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
@@ -341,10 +356,16 @@ fun AppNavHost(
                 onEliminarProductoDeReceta = viewModel::eliminarProductoDeReceta,
                 onProductSearchQueryChanged = viewModel::onProductSearchQueryChanged,
                 onClearProductSearch = viewModel::clearProductSearch,
-                onNavigateToLotes = { jId ->
+                onNavigateToLotes = { loteId ->
+                    // Navegar a recetas con el nuevo loteId
                     navController.navigate(
-                        AppDestinations.GESTION_LOTES_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jId.toString())
-                    )
+                        AppDestinations.RECETAS_ROUTE
+                            .replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())
+                            .replace("{${AppDestinations.LOTE_ID_ARG}}", loteId.toString())
+                    ) {
+                        // Reemplazar la instancia actual de RecetasScreen
+                        popUpTo(AppDestinations.RECETAS_ROUTE) { inclusive = true }
+                    }
                 }
             )
         }
@@ -448,7 +469,9 @@ fun AppNavHost(
                 onUpdateLocation = viewModel::updateJobLocation,
                 onNavigate = { route -> navController.navigate(route) },
                 onDaySelected = viewModel::onDaySelected,
-                onDismissHourlyDialog = viewModel::onDismissHourlyDialog
+                onDismissHourlyDialog = viewModel::onDismissHourlyDialog,
+                onShowLoteSelectorForRecipe = viewModel::showLoteSelectorForRecipe,
+                onDismissLoteSelector = viewModel::dismissLoteSelector
             )
         }
         composable(
@@ -459,5 +482,45 @@ fun AppNavHost(
                 onNavigateUp = { navController.navigateUp() }
             )
         }
+        composable(
+            route = AppDestinations.WORK_PLAN_ROUTE,
+            arguments = listOf(
+                navArgument(AppDestinations.JOB_ID_ARG) { type = NavType.IntType },
+                navArgument(AppDestinations.LOTE_ID_ARG) {
+                    type = NavType.IntType
+                    defaultValue = 0
+                    nullable = false
+                }
+            )
+        ) {
+            val viewModel: WorkPlanViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            WorkPlanScreen(
+                uiState = uiState,
+                onExtensionEOChanged = viewModel::onExtensionEOChanged,
+                onExtensionNSChanged = viewModel::onExtensionNSChanged,
+                onCaudalChanged = viewModel::onCaudalChanged,
+                onInterlineadoChanged = viewModel::onInterlineadoChanged,
+                onVelocidadTrabajoChanged = viewModel::onVelocidadTrabajoChanged,
+                onAutonomiaChanged = viewModel::onAutonomiaChanged,
+                onCapacidadTanqueChanged = viewModel::onCapacidadTanqueChanged,
+                onTiempoReabastecimientoChanged = viewModel::onTiempoReabastecimientoChanged,
+                onDroneCountChanged = viewModel::onDroneCountChanged,
+                onLatReabastecedorChanged = viewModel::onLatReabastecedorChanged,
+                onLngReabastecedorChanged = viewModel::onLngReabastecedorChanged,
+                onDireccionVientoChanged = viewModel::onDireccionVientoChanged,
+                onVelocidadVientoChanged = viewModel::onVelocidadVientoChanged,
+                onCalculatePlan = viewModel::calculatePlan,
+                onDeletePlan = viewModel::deletePlan,
+                onDismissError = viewModel::dismissError,
+                onDismissSuccess = viewModel::dismissSuccess,
+                onUseJobLocationForRefuel = viewModel::onUseJobLocationForRefuel,
+                onUseLoteLocationForRefuel = viewModel::onUseLoteLocationForRefuel,
+                onBoundaryDefined = viewModel::onBoundaryDefined,
+                onBoundaryCleared = viewModel::onClearBoundary
+            )
+        }
     }
 }
+

@@ -15,7 +15,9 @@ data class JobDetailUiState(
     val parametros: JobParametros? = null,
     val isLoading: Boolean = true,
     val forecast: List<DailyWeather>? = null,
-    val selectedDayForecast: DailyWeather? = null // Nuevo estado para el diálogo
+    val selectedDayForecast: DailyWeather? = null, // Nuevo estado para el diálogo
+    val lotes: List<Lote> = emptyList(), // Lista de lotes del trabajo
+    val showLoteSelectorForRecipe: Boolean = false // Mostrar selector de lote para recetas
 )
 
 @HiltViewModel
@@ -49,6 +51,11 @@ class JobDetailViewModel @Inject constructor(
                     _uiState.update { it.copy(parametros = parametros) }
                 }
             }
+            viewModelScope.launch {
+                jobDetailRepository.getLotesStream(jobId).collect { lotes ->
+                    _uiState.update { it.copy(lotes = lotes) }
+                }
+            }
         } else {
             _uiState.update { it.copy(isLoading = false) }
         }
@@ -71,5 +78,14 @@ class JobDetailViewModel @Inject constructor(
 
     fun onDismissHourlyDialog() {
         _uiState.update { it.copy(selectedDayForecast = null) }
+    }
+
+    // --- FUNCIONES PARA SELECTOR DE LOTE ---
+    fun showLoteSelectorForRecipe() {
+        _uiState.update { it.copy(showLoteSelectorForRecipe = true) }
+    }
+
+    fun dismissLoteSelector() {
+        _uiState.update { it.copy(showLoteSelectorForRecipe = false) }
     }
 }

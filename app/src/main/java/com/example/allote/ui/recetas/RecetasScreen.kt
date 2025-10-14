@@ -1,5 +1,6 @@
 package com.example.allote.ui.recetas
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Warning
@@ -62,6 +64,7 @@ fun RecetasScreen(
     var showSelectProductDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     var showActionMenuForRecipe by remember { mutableStateOf<Recipe?>(null) }
+    var showLoteSelectorDialog by remember { mutableStateOf(false) }
 
     val resumenText = when {
         uiState.summaryIsDirty -> "Los datos han cambiado. Vuelve a calcular para ver el resumen actualizado."
@@ -96,12 +99,35 @@ fun RecetasScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
-                            "Receta para: ${uiState.job?.clientName ?: "Trabajo"}",
-                            fontWeight = FontWeight.Bold
-                        )
+                        Column {
+                            Text(
+                                "Receta para: ${uiState.job?.clientName ?: "Trabajo"}",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            // Mostrar indicador de lote si estamos trabajando con uno específico
+                            uiState.currentLote?.let { lote ->
+                                Text(
+                                    "Lote: ${lote.nombre} (${lote.hectareas} has)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     },
                     actions = {
+                        // Botón para cambiar de lote (solo si hay lotes)
+                        if (uiState.allLotes.isNotEmpty()) {
+                            IconButton(
+                                onClick = { showLoteSelectorDialog = true }
+                            ) {
+                                Icon(
+                                    Icons.Default.Grain,
+                                    contentDescription = "Cambiar Lote",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                         IconButton(
                             onClick = { showHelpDialog = true },
                             modifier = Modifier
@@ -182,6 +208,20 @@ fun RecetasScreen(
             },
             onSearchQueryChanged = onProductSearchQueryChanged,
             onClearSearch = onClearProductSearch
+        )
+    }
+
+    // Selector de lotes
+    if (showLoteSelectorDialog && uiState.job != null) {
+        LoteQuickSelectorDialog(
+            lotes = uiState.allLotes,
+            currentLoteId = uiState.currentLote?.id,
+            jobId = uiState.job.id,
+            onLoteSelected = { loteId ->
+                showLoteSelectorDialog = false
+                onNavigateToLotes(loteId) // Reusa la navegación existente pero con loteId
+            },
+            onDismiss = { showLoteSelectorDialog = false }
         )
     }
 
@@ -1029,6 +1069,104 @@ fun HelpDialog(onDismiss: () -> Unit) {
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("Entendido")
+            }
+        }
+    )
+}
+
+@Composable
+private fun LoteQuickSelectorDialog(
+    lotes: List<com.example.allote.data.Lote>,
+    currentLoteId: Int?,
+    jobId: Int,
+    onLoteSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cambiar de Lote") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Text(
+                        "Selecciona el lote para el que deseas crear/ver la receta:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(lotes) { lote ->
+                    val isCurrentLote = lote.id == currentLoteId
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLoteSelected(lote.id) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCurrentLote)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        border = if (isCurrentLote)
+                            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        else null
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = lote.nombre,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (isCurrentLote) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "✓ Actual",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "${lote.hectareas} has",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { onLoteSelected(0) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Receta general (sin lote específico)")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
             }
         }
     )

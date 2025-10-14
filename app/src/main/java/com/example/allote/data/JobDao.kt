@@ -41,4 +41,7 @@ interface JobDao {
 
     @Query("SELECT * FROM jobs WHERE clientId = :clientId ORDER BY startDate DESC")
     fun getJobsByClientIdStream(clientId: Int): Flow<List<Job>>
+
+    @Query("SELECT * FROM jobs WHERE id = :jobId LIMIT 1")
+    suspend fun getJobByIdSync(jobId: Int): Job?
 }

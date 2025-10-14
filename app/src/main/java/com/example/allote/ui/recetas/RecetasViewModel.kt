@@ -29,6 +29,8 @@ data class RecetasUiState(
     val isLoading: Boolean = true,
     val job: Job? = null,
     val receta: Recipe? = null,
+    val currentLote: Lote? = null, // Lote actual si estamos trabajando con uno específico
+    val allLotes: List<Lote> = emptyList(), // Todos los lotes del trabajo para selector rápido
     val productosEnReceta: List<ProductoRecetaItem> = emptyList(),
     val hectareasText: String = "",
     val caudalText: String = "",
@@ -37,7 +39,8 @@ data class RecetasUiState(
     val allFormulations: List<Formulacion> = emptyList(),
     val availableProducts: List<Product> = emptyList(),
     val productSearchQuery: String = "",
-    val summaryIsDirty: Boolean = false
+    val summaryIsDirty: Boolean = false,
+    val showLoteSelector: Boolean = false // Para mostrar el selector rápido
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,9 +51,19 @@ class RecetasViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val jobId: Int = savedStateHandle[AppDestinations.JOB_ID_ARG] ?: 0
+    private val loteId: Int? = savedStateHandle.get<Int>("loteId")?.takeIf { it != 0 }
 
     private val _uiState = MutableStateFlow(RecetasUiState())
     val uiState: StateFlow<RecetasUiState> = _uiState.asStateFlow()
+
+    private data class StreamsSnapshot(
+        val job: Job?,
+        val recipeAndProducts: Pair<Recipe?, List<RecipeProduct>>,
+        val allProducts: List<Product>,
+        val allFormulations: List<Formulacion>,
+        val lote: Lote? = null,
+        val allLotes: List<Lote> = emptyList()
+    )
 
     // --- LÓGICA DE NEGOCIO Y PROPIEDADES COMPUTADAS ---
     // La lógica que antes estaba en la data class ahora vive aquí.
@@ -98,16 +111,42 @@ class RecetasViewModel @Inject constructor(
 
     init {
         if (jobId != 0) {
+            // Decidir qué stream de receta usar según si hay loteId o no
+            val recipeStream = if (loteId != null) {
+                repository.getRecipeByLoteStream(loteId)
+            } else {
+                repository.getRecipeStream(jobId)
+            }
+
+            val loteStream = if (loteId != null) repository.getLoteStream(loteId) else flowOf(null)
+            val allLotesStream = repository.getAllLotesByJobStream(jobId)
+
+            val jobStream = repository.getJobStream(jobId)
+            val recipeWithProductsStream = recipeStream.flatMapLatest { recipe ->
+                if (recipe == null) flowOf(Pair(null, emptyList()))
+                else repository.getRecipeProductsStream(recipe.id).map { products -> Pair(recipe, products) }
+            }
+            val allProductsStream = repository.getAllProductsStream()
+            val allFormulationsStream = repository.getFormulacionesStream()
+
             combine(
-                repository.getJobStream(jobId),
-                repository.getRecipeStream(jobId).flatMapLatest { recipe ->
-                    if (recipe == null) flowOf(Pair(null, emptyList()))
-                    else repository.getRecipeProductsStream(recipe.id).map { products -> Pair(recipe, products) }
-                },
-                repository.getAllProductsStream(),
-                repository.getFormulacionesStream()
+                jobStream,
+                recipeWithProductsStream,
+                allProductsStream,
+                allFormulationsStream
             ) { job, recipeAndProducts, allProducts, allFormulations ->
-                val (recipe, recipeProducts) = recipeAndProducts
+                StreamsSnapshot(job, recipeAndProducts, allProducts, allFormulations)
+            }.combine(loteStream) { snapshot, lote ->
+                snapshot.copy(lote = lote)
+            }.combine(allLotesStream) { snapshot, allLotes ->
+                snapshot.copy(allLotes = allLotes)
+            }.map { snapshot ->
+                val (recipe, recipeProducts) = snapshot.recipeAndProducts
+                val job = snapshot.job
+                val allProducts = snapshot.allProducts
+                val allFormulations = snapshot.allFormulations
+                val lote = snapshot.lote
+                val allLotes = snapshot.allLotes
 
                 val appType = if (job?.tipoAplicacion.equals("Aplicacion solida", true)) ApplicationType.ESPARCIDO else ApplicationType.PULVERIZACION
                 val availableProductsForJob = allProducts.filter { it.applicationType == appType.name || it.applicationType == ApplicationType.AMBOS.name }
@@ -132,14 +171,21 @@ class RecetasViewModel @Inject constructor(
                     }
                 }
 
+                val hectareasDefault = lote?.hectareas?.toString()
+                    ?: recipe?.hectareas?.toString()
+                    ?: job?.surface?.toString()
+                    ?: ""
+
                 _uiState.value.copy(
                     isLoading = false,
                     job = job,
                     receta = recipe,
+                    currentLote = lote,
+                    allLotes = allLotes,
                     productosEnReceta = productosRecetaItems.sortedBy { it.ordenMezclado },
                     allFormulations = allFormulations,
                     availableProducts = availableProductsForJob,
-                    hectareasText = _uiState.value.hectareasText.ifEmpty { recipe?.hectareas?.toString() ?: job?.surface?.toString() ?: "" },
+                    hectareasText = _uiState.value.hectareasText.ifEmpty { hectareasDefault },
                     caudalText = _uiState.value.caudalText.ifEmpty { recipe?.caudal?.toString() ?: "" },
                     caldoPorTachadaText = _uiState.value.caldoPorTachadaText.ifEmpty { recipe?.caldoPorTachada?.takeIf { it > 0 }?.toString() ?: "" },
                     resumenActual = if (_uiState.value.summaryIsDirty) null else recipe?.resumen,
@@ -212,7 +258,7 @@ class RecetasViewModel @Inject constructor(
             }
 
             // Guardar en la base de datos en segundo plano
-            repository.saveFullRecipe(jobId, state.receta, hectareas, caudal, capacidadTachada, totalMezcla, resumenFinal, productosCalculados)
+            repository.saveFullRecipe(jobId, loteId, state.receta, hectareas, caudal, capacidadTachada, totalMezcla, resumenFinal, productosCalculados)
         }
     }
 
@@ -252,14 +298,14 @@ class RecetasViewModel @Inject constructor(
                 if (numCargasCompletas > 0) {
                     resumenBuilder.append("\n📦 Cargas 1 a $numCargasCompletas (%.2f Kgs c/u)\n".format(capacidadTachada))
                     productosCalculados.forEach { producto ->
-                        val dosisCarga = producto.dosis * (capacidadTachada / (productosCalculados.sumOf { it.dosis }))
+                        val dosisCarga = (producto.cantidadTotal / totalKilos) * capacidadTachada
                         resumenBuilder.append("• %s: %.2f Kgs\n".format(producto.nombreComercial, dosisCarga))
                     }
                 }
                 if (cargaFinal > 0.01) {
                     resumenBuilder.append("\n📦 Carga ${numCargasCompletas + 1} (%.2f Kgs)\n".format(cargaFinal))
                     productosCalculados.forEach { producto ->
-                        val dosisCarga = producto.dosis * (cargaFinal / (productosCalculados.sumOf { it.dosis }))
+                        val dosisCarga = (producto.cantidadTotal / totalKilos) * cargaFinal
                         resumenBuilder.append("• %s: %.2f Kgs\n".format(producto.nombreComercial, dosisCarga))
                     }
                 }
@@ -313,5 +359,14 @@ class RecetasViewModel @Inject constructor(
             }
         }
         return Pair(productosCalculados, resumenBuilder.toString())
+    }
+
+    // Funciones para el selector de lotes
+    fun showLoteSelector() {
+        _uiState.update { it.copy(showLoteSelector = true) }
+    }
+
+    fun dismissLoteSelector() {
+        _uiState.update { it.copy(showLoteSelector = false) }
     }
 }

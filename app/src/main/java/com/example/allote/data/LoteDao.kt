@@ -23,4 +23,13 @@ interface LoteDao {
 
     @Query("SELECT * FROM lotes WHERE jobId = :jobId")
     suspend fun getByJobId(jobId: Int): List<Lote>
+
+    @Query("SELECT * FROM lotes WHERE id = :loteId")
+    fun getByIdStream(loteId: Int): Flow<Lote?>
+
+    @Query("SELECT * FROM lotes WHERE id = :loteId")
+    suspend fun getById(loteId: Int): Lote?
+
+    @Query("SELECT * FROM lotes WHERE id = :loteId")
+    suspend fun getLoteByIdSync(loteId: Int): Lote?
 }

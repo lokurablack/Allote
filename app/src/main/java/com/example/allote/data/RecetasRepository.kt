@@ -9,6 +9,7 @@ class RecetasRepository(
     private val recipeDao: RecipeDao,
     private val productDao: ProductDao,
     private val formulacionDao: FormulacionDao,
+    private val loteDao: LoteDao,
     private val appDatabase: AppDatabase
 ) {
 
@@ -16,12 +17,19 @@ class RecetasRepository(
     fun getRecipeStream(jobId: Int): Flow<Recipe?> = recipeDao.getRecipeByJobIdStream(jobId)
     fun getRecipeProductsStream(recipeId: Int): Flow<List<RecipeProduct>> = recipeDao.getRecipeProductsByRecipeIdStream(recipeId)
 
+    // Nuevas funciones para recetas por lote
+    fun getRecipeByLoteStream(loteId: Int): Flow<Recipe?> = recipeDao.getRecipeByLoteIdStream(loteId)
+    fun getAllRecipesByJobStream(jobId: Int): Flow<List<Recipe>> = recipeDao.getAllRecipesByJobIdStream(jobId)
+    fun getLoteStream(loteId: Int): Flow<Lote?> = loteDao.getByIdStream(loteId)
+    fun getAllLotesByJobStream(jobId: Int): Flow<List<Lote>> = loteDao.getByJobIdStream(jobId)
+
     // === CAMBIO CLAVE: Ahora estas funciones devuelven Flow y usan los métodos "Stream" del DAO ===
     fun getFormulacionesStream(): Flow<List<Formulacion>> = formulacionDao.getAllStream()
     fun getAllProductsStream(): Flow<List<Product>> = productDao.getAllStream()
 
     suspend fun saveFullRecipe(
         jobId: Int,
+        loteId: Int? = null, // Nuevo parámetro opcional
         currentRecipe: Recipe?,
         hectareas: Double,
         caudal: Double,
@@ -33,9 +41,10 @@ class RecetasRepository(
         return appDatabase.withTransaction {
             val recipeToSave = (currentRecipe?.copy(
                 hectareas = hectareas, caudal = caudal, caldoPorTachada = capacidadTachada ?: 0.0,
-                totalCaldo = totalMezcla, fechaCreacion = System.currentTimeMillis(), resumen = resumen
+                totalCaldo = totalMezcla, fechaCreacion = System.currentTimeMillis(), resumen = resumen,
+                loteId = loteId
             ) ?: Recipe(
-                jobId = jobId, hectareas = hectareas, caudal = caudal,
+                jobId = jobId, loteId = loteId, hectareas = hectareas, caudal = caudal,
                 caldoPorTachada = capacidadTachada ?: 0.0, totalCaldo = totalMezcla,
                 fechaCreacion = System.currentTimeMillis(), resumen = resumen
             ))

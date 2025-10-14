@@ -95,10 +95,11 @@ class GestionLotesRepository(
     // --- LÓGICA PRINCIPAL ACTUALIZADA ---
     suspend fun calculateRecipeSummaryForLote(jobId: Int, lote: Lote): String {
         val job = jobDao.getById(jobId)
-        val recipe = recipeDao.getRecipeByJobId(jobId)
+        // Buscar receta específica del lote, si no existe buscar receta general del trabajo
+        val recipe = recipeDao.getRecipeByLoteId(lote.id) ?: recipeDao.getRecipeByJobId(jobId)
 
         if (job == null || recipe == null) {
-            return "No hay una receta calculada para este trabajo."
+            return "No hay una receta calculada para este lote ni para el trabajo."
         }
 
         val recipeProducts = recipeDao.getRecipeProductsByRecipeId(recipe.id)
