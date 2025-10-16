@@ -249,21 +249,24 @@ object AppModule {
     fun provideChecklistsRepository(dao: ChecklistDao): ChecklistsRepository = ChecklistsRepository(dao)
 
     @Provides
-    fun provideWorkPlanDao(db: AppDatabase): WorkPlanDao = db.workPlanDao()
+    fun provideFieldSurveyDao(db: AppDatabase): FieldSurveyDao = db.fieldSurveyDao()
 
     @Provides
-    fun provideFlightSegmentDao(db: AppDatabase): FlightSegmentDao = db.flightSegmentDao()
+    fun provideSurveyAnnotationDao(db: AppDatabase): SurveyAnnotationDao = db.surveyAnnotationDao()
+
+    @Provides
+    fun provideAnnotationMediaDao(db: AppDatabase): AnnotationMediaDao = db.annotationMediaDao()
 
     @Provides
     @Singleton
-    fun provideWorkPlanRepository(
-        workPlanDao: WorkPlanDao,
-        flightSegmentDao: FlightSegmentDao,
+    fun provideFieldSurveyRepository(
+        fieldSurveyDao: FieldSurveyDao,
+        annotationDao: SurveyAnnotationDao,
+        mediaDao: AnnotationMediaDao,
         jobDao: JobDao,
-        loteDao: LoteDao,
-        jobParametrosDao: JobParametrosDao
-    ): WorkPlanRepository {
-        return WorkPlanRepository(workPlanDao, flightSegmentDao, jobDao, loteDao, jobParametrosDao)
+        loteDao: LoteDao
+    ): FieldSurveyRepository {
+        return FieldSurveyRepository(fieldSurveyDao, annotationDao, mediaDao, jobDao, loteDao)
     }
 
     @Provides

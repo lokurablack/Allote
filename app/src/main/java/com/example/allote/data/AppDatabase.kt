@@ -28,10 +28,11 @@ import kotlinx.coroutines.launch
         DocumentoMovimiento::class,
         Checklist::class,
         ChecklistItem::class,
-        WorkPlan::class,
-        FlightSegment::class
+        FieldSurvey::class,
+        SurveyAnnotation::class,
+        AnnotationMedia::class
     ],
-    version = 28, // WorkPlan y FlightSegment con mejoras de planificacion y perimetros
+    version = 29, // Relevamientos de campo con anotaciones visuales
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -49,8 +50,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun movimientoContableDao(): MovimientoContableDao
     abstract fun documentoMovimientoDao(): DocumentoMovimientoDao
     abstract fun checklistDao(): ChecklistDao
-    abstract fun workPlanDao(): WorkPlanDao
-    abstract fun flightSegmentDao(): FlightSegmentDao
+    abstract fun fieldSurveyDao(): FieldSurveyDao
+    abstract fun surveyAnnotationDao(): SurveyAnnotationDao
+    abstract fun annotationMediaDao(): AnnotationMediaDao
 
     companion object {
         @Volatile
@@ -144,6 +146,84 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE work_plans ADD COLUMN numeroDrones INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE work_plans ADD COLUMN boundaryGeoJson TEXT")
+            }
+        }
+
+        private val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Conservar planes anteriores como tablas legacy para referencia
+                try {
+                    db.execSQL("ALTER TABLE work_plans RENAME TO legacy_work_plans")
+                } catch (_: Exception) {
+                    // Tabla no existe, no es necesario hacer nada
+                }
+                try {
+                    db.execSQL("ALTER TABLE flight_segments RENAME TO legacy_flight_segments")
+                } catch (_: Exception) {
+                    // Tabla no existe, no es necesario hacer nada
+                }
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS field_surveys (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        jobId INTEGER NOT NULL,
+                        loteId INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        title TEXT,
+                        notes TEXT,
+                        baseLayer TEXT NOT NULL DEFAULT 'SATELLITE',
+                        referenceImageUri TEXT,
+                        boundaryGeoJson TEXT,
+                        customCategoriesJson TEXT,
+                        FOREIGN KEY(jobId) REFERENCES jobs(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(loteId) REFERENCES lotes(id) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_field_surveys_jobId ON field_surveys(jobId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_field_surveys_loteId ON field_surveys(loteId)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS survey_annotations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        surveyId INTEGER NOT NULL,
+                        category TEXT NOT NULL,
+                        title TEXT,
+                        description TEXT,
+                        geometryType TEXT NOT NULL,
+                        geometryPayload TEXT NOT NULL,
+                        colorHex TEXT NOT NULL,
+                        icon TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL DEFAULT 0,
+                        isCritical INTEGER NOT NULL DEFAULT 0,
+                        metadataJson TEXT,
+                        FOREIGN KEY(surveyId) REFERENCES field_surveys(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_survey_annotations_surveyId ON survey_annotations(surveyId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_survey_annotations_category ON survey_annotations(category)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS annotation_media (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        annotationId INTEGER NOT NULL,
+                        uri TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        description TEXT,
+                        createdAt INTEGER NOT NULL,
+                        isUploaded INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(annotationId) REFERENCES survey_annotations(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_annotation_media_annotationId ON annotation_media(annotationId)")
             }
         }
 
@@ -387,7 +467,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_24_25,
                         MIGRATION_25_26,
                         MIGRATION_26_27,
-                        MIGRATION_27_28
+                        MIGRATION_27_28,
+                        MIGRATION_28_29
                     )
                     .fallbackToDestructiveMigration()
                     .build()

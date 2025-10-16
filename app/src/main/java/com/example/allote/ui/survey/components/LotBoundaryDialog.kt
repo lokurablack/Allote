@@ -1,4 +1,4 @@
-package com.example.allote.ui.workplan.components
+package com.example.allote.ui.survey.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,13 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.allote.ui.workplan.BoundaryPoint
+import com.example.allote.ui.survey.BoundaryPoint
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -32,15 +32,18 @@ import com.google.maps.android.compose.rememberCameraPositionState
 fun LotBoundaryDialog(
     initialPoints: List<BoundaryPoint>,
     onConfirm: (List<BoundaryPoint>) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onClear: () -> Unit
 ) {
-    var pointList by remember { mutableStateOf(initialPoints.map { LatLng(it.latitude, it.longitude) }) }
+    var pointList by remember {
+        mutableStateOf(initialPoints.map { LatLng(it.latitude, it.longitude) })
+    }
 
     val defaultPosition = pointList.takeIf { it.isNotEmpty() }?.let { points ->
         val latAverage = points.map { it.latitude }.average()
         val lngAverage = points.map { it.longitude }.average()
         LatLng(latAverage, lngAverage)
-    } ?: LatLng(-31.436, -63.548) // Centro aproximado de Córdoba, AR
+    } ?: LatLng(-31.436, -63.548)
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition(defaultPosition, 15f, 0f, 0f)
@@ -84,13 +87,20 @@ fun LotBoundaryDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
-                        onClick = { if (pointList.isNotEmpty()) pointList = pointList.dropLast(1) },
+                        onClick = {
+                            if (pointList.isNotEmpty()) {
+                                pointList = pointList.dropLast(1)
+                            }
+                        },
                         enabled = pointList.isNotEmpty()
                     ) {
                         Text("Deshacer último")
                     }
                     TextButton(
-                        onClick = { pointList = emptyList() },
+                        onClick = {
+                            pointList = emptyList()
+                            onClear()
+                        },
                         enabled = pointList.isNotEmpty()
                     ) {
                         Text("Limpiar todo")
@@ -117,4 +127,3 @@ fun LotBoundaryDialog(
         }
     )
 }
-

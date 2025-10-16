@@ -1,413 +1,166 @@
-# Implementación Completa: Planificación de Trabajos
+﻿# Relevamiento Digital de Lotes
 
-## Resumen
+## Resumen general
 
-Actualizacion 2025-10-12:
+- Se reemplazó por completo la antigua funcionalidad de planificación automática de vuelos.
+- La aplicación ahora ofrece un **módulo de relevamiento visual** que replica el flujo manual de croquis y anotaciones en papel.
+- El operario puede documentar accesos, zonas de reabastecimiento, áreas restringidas, obstáculos, estado de los lotes vecinos, peligros y observaciones libres directamente desde el dispositivo.
+- El relevamiento queda ligado al trabajo (`Job`) y, si corresponde, al lote (`Lote`), de modo que la información queda disponible para cualquier integrante del equipo antes de ejecutar la tarea.
 
-- Motor de planificacion ajustado con parametros configurables (interlineado, velocidad, autonomia, capacidad y tiempo de reabastecimiento) y limites dinamicos por bateria/tanque.
-  - Migraciones 26->27 y 27->28 agregan columnas a `work_plans` (parametros configurables, cantidad de drones y almacenamiento de perímetros) y actualizan la version de base de datos a 28.
-  - `FlightPlanningService` genera segmentos con comentarios operativos y coordenadas consistentes respecto al centro del lote.
-  - La UI (`WorkPlanScreen`) permite editar parametros del equipo, reutilizar ubicaciones guardadas y presenta un resumen ampliado del plan calculado.
-  - `WorkPlanViewModel` precarga datos desde `JobParametros`, mantiene valores previos y refuerza validaciones de entrada antes de recalcular.
-  - Se agrego selector de cantidad de drones y se recalcula el tiempo estimado en funcion de la flota disponible.
-  - Nuevo dialogo de perimetro sobre mapa para lotes irregulares; el area y las extensiones se derivan automaticamente de la geometria capturada.
-  - Los campos numéricos muestran teclado decimal o numerico segun corresponda para agilizar la carga en dispositivos moviles.
+### Actualizaciones recientes (2025-10-15)
 
-Se ha implementado exitosamente el sistema completo de **planificación de trabajos** para la app Al Lote. Esta funcionalidad permite optimizar las aplicaciones con drones considerando múltiples factores técnicos y ambientales.
+- Se agrego un boton para abrir el mapa satelital a pantalla completa, manteniendo las mismas herramientas de anotacion.
+- Cada anotacion puntual ahora muestra un pin con color y glifo segun la categoria, e incluye el titulo visible para identificarla sin tocar el marcador.
+- Ahora se pueden dibujar trazos, lineas, rectangulos, circulos y flechas directamente sobre el mapa satelital con la herramienta 'Dibujo', reutilizando las mismas herramientas del croquis.
 
 ---
 
-## Características Implementadas
+## Objetivos del nuevo módulo
 
-### 1. **Modelo de Datos** ✅
-
-#### Entidades Creadas:
-- **`WorkPlan`** (`data/WorkPlan.kt`): Plan principal de trabajo
-  - Parámetros del equipo (autonomía, capacidad tanque, caudal)
-  - Dimensiones del lote (extensiones E-O y N-S)
-  - Ubicación del reabastecedor
-  - Condiciones de viento
-  - Resultados calculados (total vuelos, tiempo, distancia, reabastecimientos)
-  - Estrategia de vuelo optimizada
-
-- **`FlightSegment`** (`data/FlightSegment.kt`): Segmentos individuales de vuelo
-  - Coordenadas de inicio y fin
-  - Distancia y tiempo de vuelo
-  - Área cubierta y producto pulverizado
-  - Requerimientos de reabastecimiento (batería/producto/ambos)
-
-#### DAOs Creados:
-- **`WorkPlanDao`** (`data/WorkPlanDao.kt`):
-  - CRUD completo para planes de trabajo
-  - Consultas por job o lote específico
-  - Flujos reactivos con Flow
-
-- **`FlightSegmentDao`** (`data/FlightSegmentDao.kt`):
-  - Gestión de segmentos de vuelo
-  - Ordenamiento por secuencia
-  - Sincronización con planes
+- Capturar el perímetro real del lote y mantener un repositorio digital de anotaciones operativas.
+- Facilitar la transferencia de conocimiento entre quien visita el lote para planificar y el operario que realiza el trabajo.
+- Permitir alternar entre un mapa satelital y un croquis libre para plasmar recorridos, zonas y referencias visuales.
+- Centralizar fotografías, notas detalladas y banderas de “dato crítico” que ameritan especial atención.
+- Compartir o exportar la información sin depender de impresiones o fotos de pizarras.
 
 ---
 
-### 2. **Lógica de Negocio** ✅
+## Arquitectura de datos
 
-#### Servicio de Planificación (`service/FlightPlanningService.kt`):
+### Entidades nuevas (`AppDatabase` v29)
 
-**Algoritmo de Optimización de Pasadas:**
-- Analiza dimensiones del lote (Este-Oeste vs Norte-Sur)
-- Considera dirección del viento (0-360°)
-- Determina orientación óptima (perpendicular al viento preferiblemente)
-- Calcula estrategia: `FAVOR_VIENTO`, `CONTRA_VIENTO`, `PERPENDICULAR_VIENTO`
+| Entidad | Propósito | Campos clave |
+| --- | --- | --- |
+| `FieldSurvey` | Cabecera del relevamiento asociado a un `Job` (y opcionalmente a un `Lote`). | `jobId`, `loteId`, `createdAt`, `updatedAt`, `baseLayer`, `boundaryGeoJson`, `customCategoriesJson` |
+| `SurveyAnnotation` | Anotación individual (marcador, polilínea, polígono o trazo). | `surveyId`, `category`, `geometryType`, `geometryPayload`, `colorHex`, `isCritical`, `metadataJson` |
+| `AnnotationMedia` | Archivos multimedia asociados a una anotación (fotos, documentos). | `annotationId`, `uri`, `type`, `isUploaded` |
 
-**Cálculo de Autonomía y Reabastecimientos:**
-- **Autonomía de batería**: 9 minutos (configurable)
-- **Capacidad de tanque**: 40L (DJI Agras T50)
-- **Velocidad de vuelo**: 5 m/s (~18 km/h)
-- **Ancho de pasada**: 7 metros
+#### Migración 28 → 29
 
-**Proceso de Cálculo:**
-1. Determina orientación óptima de pasadas
-2. Calcula área cubierta por tanque completo
-3. Calcula área cubierta en autonomía de batería
-4. Determina factor limitante (batería o producto)
-5. Genera segmentos de vuelo individuales
-6. Identifica puntos de reabastecimiento
-7. Calcula métricas totales (tiempo, distancia, reabastecimientos)
-
-**Fórmulas Implementadas:**
-- Área por tanque: `CAPACIDAD_TANQUE / caudal_L/ha`
-- Área por autonomía: `(tiempo_vuelo_seg × velocidad_m/s × ancho_pasada_m) / 10000`
-- Distancia Haversine para cálculos geográficos precisos
+1. Se renombran las tablas viejas `work_plans` y `flight_segments` a `legacy_*` para preservar el histórico.
+2. Se crean las nuevas tablas con índices sobre `jobId`, `loteId` y `surveyId`.
+3. Se conserva la versión previa para referencia pero ya no se usan las entidades ni DAOs antiguos.
 
 ---
 
-### 3. **Repository Pattern** ✅
+## Repositorio y capa de dominio
 
-#### `WorkPlanRepository` (`data/WorkPlanRepository.kt`):
-- **Creación de planes**: Integra el servicio de planificación
-- **Recalculación**: Permite actualizar planes con nuevos parámetros
-- **Gestión completa**: CRUD, eliminación en cascada
-- **Inyección de dependencias**: Integrado con Hilt
+### `FieldSurveyRepository`
 
----
+- `ensureSurvey(jobId, loteId)` crea o reutiliza el relevamiento activo para el trabajo/lote.
+- `observeSurveyWithAnnotations(surveyId)` expone un flow reactivo con la cabecera y las anotaciones + adjuntos.
+- Operaciones de mantenimiento: actualizar capa base, perímetro, categorías personalizadas, insertar/editar/eliminar anotaciones y adjuntos.
+- Accesos de conveniencia para obtener metadatos del trabajo (`Job`) y del lote (`Lote`).
+- Internamente se actualiza el `updatedAt` del relevamiento ante cualquier modificación.
 
-### 4. **ViewModel (MVVM)** ✅
+### Geometrías (`SurveyGeometry`)
 
-#### `WorkPlanViewModel` (`ui/workplan/WorkPlanViewModel.kt`):
+Se definió un `sealed class` para representar diferentes tipos de geometría y serializarlas a JSON:
 
-**State Management:**
-```kotlin
-data class WorkPlanUiState(
-    val job: Job?,
-    val lote: Lote?,
-    val currentPlan: WorkPlan?,
-    val flightSegments: List<FlightSegment>,
-    val extensionEsteOeste: String,
-    val extensionNorteSur: String,
-    val caudal: String,
-    val latReabastecedor: String,
-    val lngReabastecedor: String,
-    val direccionViento: Float,
-    val velocidadViento: String,
-    val isCalculating: Boolean,
-    val showSuccess: Boolean,
-    val error: String?
-)
-```
-
-**Funcionalidades:**
-- Validación de inputs en tiempo real
-- Carga de planes existentes (reactiva con Flow)
-- Cálculo y recalculación de planes
-- Uso de ubicaciones predefinidas (trabajo/lote)
-- Manejo de errores robusto
+- `MapPoint`, `MapPolyline`, `MapPolygon` para trabajar con coordenadas geográficas.
+- `SketchPath` y `SketchShape` para croquis manuales (almacena puntos normalizados respecto al lienzo).
 
 ---
 
-### 5. **UI (Jetpack Compose + Material 3)** ✅
+## UI y flujo de usuario
 
-#### `WorkPlanScreen` (`ui/workplan/WorkPlanScreen.kt`):
+### Pantalla `FieldSurveyScreen`
 
-**Componentes Principales:**
+1. **Capa de trabajo**: conmutador entre Mapa (Google Maps híbrido) y Croquis o lienzo libre.
+2. **Selector de categorías**: chips configurables con color e icono; incluye conjunto base (Accesos, Reabastecimiento, Zonas prohibidas, Obstáculos, Vecinos, Peligros, Observaciones) y permite crear categorías personalizadas.
+3. **Mapa**: tapping crea anotaciones puntuales; se renderizada el perímetro capturado y se listan los elementos guardados.
+4. **Croquis**: herramientas de trazo libre, línea, flecha, rectángulo, círculo y modo mover/zoom; soporte de deshacer.
+5. **Panel de anotaciones**: listado con edición in-place, adjuntos fotográficos y banderas de criticidad.
+6. **Snacks y validaciones**: feedback inmediato ante guardados, eliminaciones y errores.
 
-1. **JobInfoCard**: Información del trabajo/lote con gradiente
-2. **PlanSummaryCard**: Resumen del plan calculado
-   - Total de vuelos
-   - Tiempo total estimado
-   - Número de reabastecimientos
-   - Dirección y estrategia de pasadas
-   - Distancia total recorrida
+### ViewModel (`FieldSurveyViewModel`)
 
-3. **FlightSegmentsCard**: Lista detallada de segmentos
-   - Número de vuelo
-   - Área cubierta y tiempo
-   - Producto pulverizado
-   - Indicador de reabastecimiento (color coded)
-
-4. **ConfigurationCard**: Formulario completo
-   - Dimensiones del lote (E-O, N-S)
-   - Caudal de aplicación
-   - Ubicación del reabastecedor (con botones rápidos)
-   - Dirección del viento (slider visual con etiquetas)
-   - Velocidad del viento
-
-**Diseño:**
-- Material 3 con gradientes y elevaciones
-- Color coding para estados críticos (reabastecimientos)
-- Responsive y scrollable
-- Diálogos de error y éxito
+- Inicializa contexto (`Job`, `Lote`) y garantiza la existencia del relevamiento.
+- Convierte el snapshot de base de datos a `FieldSurveyUiState`, separando anotaciones de mapa y croquis.
+- Gestiona borradores de anotación, apertura/cierre de diálogos y sincroniza la capa base seleccionada.
+- Serializa perímetros y categorías personalizadas (JSON) y dispara eventos de exportación PDF y compartir.
 
 ---
 
-### 6. **Integración** ✅
+## Datos persistidos vs. elementos UI
 
-#### Base de Datos:
-- **Versión 26** de AppDatabase
-- **Migración 25→26** creada:
-  - Tabla `work_plans` con 21 campos
-  - Tabla `flight_segments` con 13 campos
-  - Foreign keys con CASCADE en ambas
-
-#### Navegación:
-- Nueva ruta: `WORK_PLAN_ROUTE = "work_plan/{jobId}?loteId={loteId}"`
-- Composable agregado en `AppNavigation.kt`
-- Integración con argumentos opcionales (loteId)
-
-#### Inyección de Dependencias (Hilt):
-- `provideWorkPlanDao()`
-- `provideFlightSegmentDao()`
-- `provideWorkPlanRepository()`
-- Todas las dependencias configuradas en `AppModule.kt`
-
-#### JobDetailScreen:
-- **Nuevo botón de acción**: "Planificación - Optimizar"
-- Color: `#3F51B5` (azul índigo)
-- Icono: `Icons.Default.Flight`
-- Navegación directa al planificador
+| Elemento UI | Persistencia |
+| --- | --- |
+| Perímetro interactivo | `FieldSurvey.boundaryGeoJson` (array de `{lat, lng}`) |
+| Categorías personalizadas | `FieldSurvey.customCategoriesJson` |
+| Trazo libre croquis | `SurveyAnnotation` con `SketchPath` |
+| Markers en mapa | `SurveyAnnotation` con `MapPoint` |
+| Fotos adjuntas | `AnnotationMedia` |
 
 ---
 
-## Archivos Creados
+## Impacto en navegación y DI
 
-### Modelo de Datos:
-1. `app/src/main/java/com/example/allote/data/WorkPlan.kt`
-2. `app/src/main/java/com/example/allote/data/FlightSegment.kt`
-3. `app/src/main/java/com/example/allote/data/WorkPlanDao.kt`
-4. `app/src/main/java/com/example/allote/data/FlightSegmentDao.kt`
-5. `app/src/main/java/com/example/allote/data/WorkPlanRepository.kt`
-
-### Lógica de Negocio:
-6. `app/src/main/java/com/example/allote/service/FlightPlanningService.kt`
-
-### UI/Presentación:
-7. `app/src/main/java/com/example/allote/ui/workplan/WorkPlanViewModel.kt`
-8. `app/src/main/java/com/example/allote/ui/workplan/WorkPlanScreen.kt`
+- Nueva ruta: `AppDestinations.FIELD_SURVEY_ROUTE = "field_survey/{jobId}?loteId={loteId}"`.
+- `AppModule` inyecta `FieldSurveyDao`, `SurveyAnnotationDao`, `AnnotationMediaDao` y `FieldSurveyRepository`.
+- `JobDetailScreen` abre la experiencia cuando el usuario elige “Planificar relevamiento”.
+- Se eliminan `WorkPlanScreen`, `WorkPlanViewModel`, `WorkPlanRepository`, `FlightPlanningService` y tablas relacionadas.
 
 ---
 
-## Archivos Modificados
+## Funcionalidades clave entregadas
 
-1. **`AppDatabase.kt`**:
-   - Agregadas entidades `WorkPlan` y `FlightSegment`
-   - Versión incrementada a 26
-   - Migración 25→26 implementada
-   - DAOs abstractos agregados
-
-2. **`AppModule.kt`**:
-   - Providers para DAOs y Repository
-   - Configuración Singleton
-
-3. **`AppNavigation.kt`**:
-   - Ruta `WORK_PLAN_ROUTE`
-   - Imports de ViewModel y Screen
-   - Composable con argumentos
-
-4. **`JobDetailScreen.kt`**:
-   - Nuevo ActionCard para Planificación
-   - Navegación configurada
-
-5. **`JobDao.kt`**:
-   - Método `getJobByIdSync()` agregado
-
-6. **`LoteDao.kt`**:
-   - Método `getLoteByIdSync()` agregado
+1. **Exportación en PDF**: genera un informe con cabecera del trabajo, vista simplificada del mapa/croquis y listado con datos críticos. El archivo se comparte vía `FileProvider` y se abre con el intent del sistema.
+2. **Adjuntos fotográficos**: cámara y galería con persistencia de URIs; miniaturas en la lista y limpieza controlada.
+3. **Edición de anotaciones**: el diálogo se reutiliza tanto para crear como para modificar título, detalle y criticidad.
+4. **Croquis enriquecido**: herramientas de línea, flecha, rectángulo, círculo, freehand, zoom/pan y undo, con normalización para persistir y exportar.
 
 ---
 
-## Flujo de Uso
+## Consideraciones de migración y soporte
 
-### Desde la UI:
-
-1. **Usuario navega** a un JobDetail
-2. **Usuario toca** el botón "Planificación"
-3. **Sistema carga**:
-   - Información del trabajo
-   - Lote (si aplica)
-   - Plan existente (si existe)
-4. **Usuario configura**:
-   - Dimensiones del lote
-   - Caudal de aplicación
-   - Ubicación reabastecedor (manual o desde ubicaciones guardadas)
-   - Condiciones de viento
-5. **Usuario presiona** "Calcular Plan"
-6. **Sistema calcula**:
-   - Orientación óptima de pasadas
-   - Número de vuelos necesarios
-   - Puntos de reabastecimiento
-   - Tiempo total estimado
-   - Estrategia según viento
-7. **Sistema muestra**:
-   - Resumen del plan
-   - Lista detallada de segmentos de vuelo
-   - Indicadores de reabastecimiento
-8. **Usuario puede**:
-   - Ver detalles de cada vuelo
-   - Recalcular con nuevos parámetros
-   - Eliminar el plan
+- Los registros previos de planificación se mantienen en tablas `legacy_*` para consulta histórica.
+- La base de datos incrementa a versión 29; se incluye migración completa en `AppDatabase`.
+- El build `assembleDebug` compila correctamente tras los cambios (ver logs del 2025-10-14).
 
 ---
 
-## Consideraciones Técnicas
+## Referencias de código
 
-### Parámetros del Dron DJI Agras T50:
-- Autonomía: 9 minutos de vuelo continuo
-- Capacidad: 40 litros de carga útil
-- Velocidad crucero: ~5 m/s
-- Ancho de aplicación: 7 metros
-
-### Factores Considerados:
-✅ Autonomía de batería
-✅ Capacidad de tanque
-✅ Caudal de aplicación (L/ha o Kg/ha)
-✅ Dimensiones del lote (E-O, N-S)
-✅ Ubicación del equipo reabastecedor
-✅ Dirección del viento (optimización de pasadas)
-✅ Velocidad del viento
-✅ Geometría del lote
-
-### Optimizaciones Implementadas:
-- **Vuelo perpendicular al viento** cuando es posible
-- **Factor limitante automático** (batería vs producto)
-- **Cálculo preciso de reabastecimientos** (batería, producto o ambos)
-- **Tiempo total incluyendo reabastecimientos** (3 min por reabastecimiento)
-- **Distancia geográfica con Haversine** para precisión
+- `app/src/main/java/com/example/allote/data/FieldSurvey.kt` – Entidades y relaciones Room.
+- `app/src/main/java/com/example/allote/data/FieldSurveyRepository.kt` – API de acceso a datos.
+- `app/src/main/java/com/example/allote/ui/survey/FieldSurveyViewModel.kt` – Orquestación del estado UI.
+- `app/src/main/java/com/example/allote/ui/survey/FieldSurveyScreen.kt` – Composable principal con herramientas de relevamiento.
+- `app/src/main/java/com/example/allote/ui/survey/export/FieldSurveyExporter.kt` – Generación y compartición del PDF.
+- `app/src/main/java/com/example/allote/ui/AppNavigation.kt` – Nueva ruta y navegación actualizada.
 
 ---
 
-## Próximos Pasos (Opcionales)
+## Optimizaciones y ajustes posteriores (2025-10-15)
 
-### Mejoras Futuras Sugeridas:
+### Corrección de errores críticos
 
-1. **Visualización en Mapa**:
-   - Integrar Google Maps para mostrar pasadas visualmente
-   - Dibujar segmentos de vuelo sobre el lote
-   - Marcar puntos de reabastecimiento
+1. **Error de exportación PDF**: Se corrigió el parsing incorrecto de `boundaryGeoJson`. El campo almacena un array JSON de objetos `{lat, lng}` pero se intentaba parsear como `SurveyGeometry`. Se agregó la función helper `parseBoundaryPoints()` en `FieldSurveyExporter.kt:430-443` para manejar correctamente el formato.
 
-2. **Exportación**:
-   - Generar PDF del plan
-   - Exportar coordenadas KML/KMZ para DJI
-   - Compartir plan por WhatsApp/Email
+2. **Error de overload en compilación**: Se eliminó el archivo `FieldSurveyScreen_backup.kt` que causaba conflicto al tener dos funciones `FieldSurveyScreen` con la misma firma en el mismo paquete.
 
-3. **Geometría Real**:
-   - Captura de polígonos reales del lote (no solo rectángulos)
-   - Cálculo con obstáculos (árboles, edificios)
-   - Integración con drones para seguir el plan
+### Optimización del layout y distribución de espacio
 
-4. **Optimización Avanzada**:
-   - Algoritmo genético para minimizar tiempo total
-   - Múltiples ubicaciones de reabastecimiento
-   - Planificación multi-drone
+**Problema identificado**: El mapa/croquis se volvía demasiado pequeño cuando se agregaban anotaciones, haciendo imposible seguir trabajando sobre la imagen.
 
-5. **Historial**:
-   - Comparación de planes (antes/después)
-   - Estadísticas de eficiencia
-   - Aprendizaje de patrones
+**Solución implementada** (`FieldSurveyScreen.kt`):
 
----
+1. **Reducción de densidad visual**:
+   - Altura de la lista de anotaciones: 200dp → 120dp (línea 850)
+   - Padding del Card contenedor: 12dp → 8dp (línea 832)
+   - Padding de cada anotación: 10dp → 8dp (línea 879)
+   - Espaciadores internos: 6dp → 4dp (líneas 924, 932)
+   - Spacing entre anotaciones: 8dp → 6dp (línea 849)
 
-## Testing Recomendado
+2. **Compactación de elementos**:
+   - Miniaturas de fotos: 80×60dp → 60×45dp (línea 950)
+   - Botón "Foto": altura 28dp → 24dp, icono 14dp → 12dp, texto 11sp → 10sp (líneas 935-939)
+   - Botón eliminar en miniaturas: 20dp → 18dp, icono 12dp → 10dp (líneas 963-965)
 
-### Casos de Prueba:
+3. **Ajustes tipográficos previos**:
+   - Todos los tamaños de fuente reducidos en 20-30%
+   - Títulos: 18sp, labels: 12-13sp, body: 11-13sp
+   - Uso de símbolos (✏, —, →, ▢, ○, ✋) en lugar de texto en herramientas de croquis
+   - Iconos: 14-18dp en lugar de 24dp
 
-1. **Lote pequeño** (< 10 ha):
-   - Verificar que calcula pocos vuelos
-   - Validar que los reabastecimientos sean lógicos
-
-2. **Lote grande** (> 50 ha):
-   - Verificar escalabilidad
-   - Comprobar múltiples reabastecimientos
-
-3. **Caudal alto** (> 15 L/ha):
-   - Producto como factor limitante
-   - Más reabastecimientos de producto
-
-4. **Caudal bajo** (< 8 L/ha):
-   - Batería como factor limitante
-   - Más reabastecimientos de batería
-
-5. **Viento variable**:
-   - Dirección Norte: verificar estrategia
-   - Dirección Este: verificar cambio de orientación
-   - Velocidad alta: validar warnings (futuro)
-
-6. **Recalculación**:
-   - Cambiar parámetros de plan existente
-   - Verificar que actualiza correctamente
-
-7. **Eliminación**:
-   - Eliminar plan y segmentos
-   - Verificar eliminación en cascada
-
----
-
-## Documentación Adicional
-
-### Estructura de Datos:
-
-```
-Job (1) → (N) WorkPlan
-WorkPlan (1) → (N) FlightSegment
-
-Lote (1) → (0..1) WorkPlan (opcional)
-```
-
-### Ecuaciones Clave:
-
-```kotlin
-// Área cubierta por tanque completo
-areaPorTanque = CAPACIDAD_TANQUE_LITROS / caudalLitrosHa
-
-// Distancia en autonomía de batería
-distanciaPorAutonomia = AUTONOMIA_MIN × 60 × VELOCIDAD_MS
-
-// Área en autonomía
-areaPorAutonomia = (distanciaPorAutonomia × ANCHO_PASADA) / 10000
-
-// Factor limitante
-areaLimitante = min(areaPorTanque, areaPorAutonomia)
-
-// Total de vuelos
-totalVuelos = ceil(hectareasTotales / areaLimitante)
-```
-
----
-
-## Conclusión
-
-La implementación está **100% completa y lista para usar**. Todos los componentes están integrados siguiendo las mejores prácticas de Android:
-
-✅ Clean Architecture (Repository Pattern)
-✅ MVVM con StateFlow
-✅ Jetpack Compose + Material 3
-✅ Room con migraciones manuales
-✅ Hilt (Dependency Injection)
-✅ Kotlin Coroutines + Flow
-✅ Offline-first (Room como SSOT)
-
-La funcionalidad permite a los usuarios optimizar sus aplicaciones agrícolas con drones de manera profesional, considerando todos los factores técnicos y ambientales relevantes.
-
-**Implementación finalizada por Claude Code** 🤖
-
-Fecha: 2025-10-11
-Versión de base de datos: 26
-
+**Resultado**: Se liberaron aproximadamente 80-100dp de espacio vertical para el mapa/croquis, manteniendo toda la funcionalidad de la lista pero priorizando el área de trabajo principal.

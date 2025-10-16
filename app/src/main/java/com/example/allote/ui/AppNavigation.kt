@@ -52,8 +52,8 @@ import com.example.allote.ui.recetas.RecetasViewModel
 import com.example.allote.ui.settings.SettingsScreen
 import com.example.allote.ui.settings.SettingsViewModel
 import com.example.allote.ui.splash.SplashScreen
-import com.example.allote.ui.workplan.WorkPlanScreen
-import com.example.allote.ui.workplan.WorkPlanViewModel
+import com.example.allote.ui.survey.FieldSurveyScreen
+import com.example.allote.ui.survey.FieldSurveyViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
@@ -87,7 +87,7 @@ object AppDestinations {
     const val MOVIMIENTO_ID_ARG = "movimientoId"
     const val DOCUMENT_VIEWER_ROUTE = "document_viewer/{$MOVIMIENTO_ID_ARG}"
     const val CHECKLISTS_ROUTE = "checklists"
-    const val WORK_PLAN_ROUTE = "work_plan/{$JOB_ID_ARG}?loteId={$LOTE_ID_ARG}"
+    const val FIELD_SURVEY_ROUTE = "field_survey/{$JOB_ID_ARG}?loteId={$LOTE_ID_ARG}"
 }
 
 @Composable
@@ -483,7 +483,7 @@ fun AppNavHost(
             )
         }
         composable(
-            route = AppDestinations.WORK_PLAN_ROUTE,
+            route = AppDestinations.FIELD_SURVEY_ROUTE,
             arguments = listOf(
                 navArgument(AppDestinations.JOB_ID_ARG) { type = NavType.IntType },
                 navArgument(AppDestinations.LOTE_ID_ARG) {
@@ -493,32 +493,35 @@ fun AppNavHost(
                 }
             )
         ) {
-            val viewModel: WorkPlanViewModel = hiltViewModel()
+            val viewModel: FieldSurveyViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
 
-            WorkPlanScreen(
-                uiState = uiState,
-                onExtensionEOChanged = viewModel::onExtensionEOChanged,
-                onExtensionNSChanged = viewModel::onExtensionNSChanged,
-                onCaudalChanged = viewModel::onCaudalChanged,
-                onInterlineadoChanged = viewModel::onInterlineadoChanged,
-                onVelocidadTrabajoChanged = viewModel::onVelocidadTrabajoChanged,
-                onAutonomiaChanged = viewModel::onAutonomiaChanged,
-                onCapacidadTanqueChanged = viewModel::onCapacidadTanqueChanged,
-                onTiempoReabastecimientoChanged = viewModel::onTiempoReabastecimientoChanged,
-                onDroneCountChanged = viewModel::onDroneCountChanged,
-                onLatReabastecedorChanged = viewModel::onLatReabastecedorChanged,
-                onLngReabastecedorChanged = viewModel::onLngReabastecedorChanged,
-                onDireccionVientoChanged = viewModel::onDireccionVientoChanged,
-                onVelocidadVientoChanged = viewModel::onVelocidadVientoChanged,
-                onCalculatePlan = viewModel::calculatePlan,
-                onDeletePlan = viewModel::deletePlan,
-                onDismissError = viewModel::dismissError,
-                onDismissSuccess = viewModel::dismissSuccess,
-                onUseJobLocationForRefuel = viewModel::onUseJobLocationForRefuel,
-                onUseLoteLocationForRefuel = viewModel::onUseLoteLocationForRefuel,
+            FieldSurveyScreen(
+                state = uiState,
+                onBack = { navController.navigateUp() },
+                onBaseLayerChanged = viewModel::onBaseLayerChanged,
+                onCategorySelected = viewModel::onToggleCategory,
+                onMapLocationPicked = viewModel::onMapLocationPicked,
+                onMapShapeFinished = viewModel::onMapShapeFinished,
+                onSketchShapeFinished = viewModel::onSketchShapeFinished,
+                onShowBoundaryDialog = viewModel::onShowBoundaryDialog,
                 onBoundaryDefined = viewModel::onBoundaryDefined,
-                onBoundaryCleared = viewModel::onClearBoundary
+                onBoundaryCleared = viewModel::onBoundaryCleared,
+                onShowCustomCategoryDialog = viewModel::onShowCustomCategoryDialog,
+                onAddCustomCategory = viewModel::onAddCustomCategory,
+                onStartEditingAnnotation = viewModel::startEditingAnnotation,
+                onDeleteAnnotation = viewModel::onDeleteAnnotation,
+                onAddMedia = viewModel::onAddMedia,
+                onRemoveMedia = viewModel::onRemoveMedia,
+                onCancelDraft = viewModel::onCancelAnnotationDraft,
+                onSubmitAnnotation = viewModel::onSubmitAnnotation,
+                onSelectTool = viewModel::onSelectTool,
+                onSketchToolSelected = viewModel::onSketchToolSelected,
+                onUndoSketch = viewModel::onUndoSketch,
+                onExportPdf = { context -> viewModel.exportSurvey(context) },
+                onSnackbarConsumed = viewModel::onSnackbarConsumed,
+                onErrorConsumed = viewModel::onErrorConsumed,
+                onShareConsumed = viewModel::onShareConsumed
             )
         }
     }

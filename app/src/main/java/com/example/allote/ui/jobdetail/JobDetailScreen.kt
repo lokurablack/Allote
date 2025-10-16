@@ -1,4 +1,4 @@
-package com.example.allote.ui.jobdetail
+﻿package com.example.allote.ui.jobdetail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -140,7 +140,7 @@ fun JobDetailScreen(
                 }
             }
 
-            // Diálogo selector de lotes para recetas
+            // DiÃ¡logo selector de lotes para recetas
             if (uiState.showLoteSelectorForRecipe) {
                 LoteSelectorDialog(
                     lotes = uiState.lotes,
@@ -186,7 +186,7 @@ private fun LoteSelectorDialog(
             ) {
                 item {
                     Text(
-                        "Este trabajo está dividido en lotes. ¿Para qué lote deseas crear/ver la receta?",
+                        "Este trabajo estÃ¡ dividido en lotes. Â¿Para quÃ© lote deseas crear/ver la receta?",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -235,7 +235,7 @@ private fun LoteSelectorDialog(
                         onClick = onCreateRecipeForAll,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Crear receta general (sin lote específico)")
+                        Text("Crear receta general (sin lote especÃ­fico)")
                     }
                 }
             }
@@ -322,29 +322,29 @@ private fun HelpDialog(onDismiss: () -> Unit) {
                 ) {
                     HelpSection(
                         icon = Icons.Default.Info,
-                        title = "Información General",
+                        title = "InformaciÃ³n General",
                         description = "Revisa los detalles del cliente, fechas y estado del trabajo.",
                         color = MaterialTheme.colorScheme.primary
                     )
                     
                     HelpSection(
                         icon = Icons.Default.TouchApp,
-                        title = "Menú de Acciones",
+                        title = "MenÃº de Acciones",
                         description = "Centro de control con acceso a todas las funcionalidades:",
                         color = MaterialTheme.colorScheme.secondary,
                         items = listOf(
                             "Costos: Para facturar el trabajo",
                             "Recetas: Para crear la mezcla de productos",
                             "Lotes: Para dividir el trabajo y registrar la superficie real tratada",
-                            "Ubicación: Para ver y editar la ubicación",
-                            "Imágenes: Para gestionar fotos del trabajo"
+                            "UbicaciÃ³n: Para ver y editar la ubicaciÃ³n",
+                            "ImÃ¡genes: Para gestionar fotos del trabajo"
                         )
                     )
                     
                     HelpSection(
                         icon = Icons.Default.WbSunny,
-                        title = "Pronóstico Climático",
-                        description = "Consulta el clima para planificar la aplicación de manera óptima.",
+                        title = "PronÃ³stico ClimÃ¡tico",
+                        description = "Consulta el clima para planificar la aplicaciÃ³n de manera Ã³ptima.",
                         color = MaterialTheme.colorScheme.tertiary
                     )
                 }
@@ -412,14 +412,14 @@ private fun JobSummaryCard(job: Job) {
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Información principal
+                // InformaciÃ³n principal
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     EnhancedInfoColumn(
                         icon = Icons.Default.Map,
-                        label = "Hectáreas",
+                        label = "HectÃ¡reas",
                         value = job.surface.toString()
                     )
                     
@@ -486,7 +486,7 @@ private fun JobDetailsCard(job: Job) {
             )
             EnhancedInfoRow(
                 icon = Icons.Default.MonetizationOn,
-                label = "Facturación",
+                label = "FacturaciÃ³n",
                 value = job.billingStatus,
                 iconColor = Color(0xFFFFB74D),
                 valueColor = when (job.billingStatus.lowercase()) {
@@ -540,7 +540,7 @@ private fun JobActionMenu(
                 ActionCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Tune,
-                    title = "Parámetros",
+                    title = "ParÃ¡metros",
                     subtitle = "Configurar",
                     color = Color(0xFF2196F3),
                     onClick = { onNavigate(AppDestinations.PARAMETROS_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
@@ -573,7 +573,7 @@ private fun JobActionMenu(
                 ActionCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.PinDrop,
-                    title = "Ubicación",
+                    title = "UbicaciÃ³n",
                     subtitle = "Ver mapa",
                     color = Color(0xFFFF5722),
                     onClick = onLocationButtonClick
@@ -587,8 +587,8 @@ private fun JobActionMenu(
                 ActionCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Image,
-                    title = "Imágenes",
-                    subtitle = "Galería",
+                    title = "ImÃ¡genes",
+                    subtitle = "GalerÃ­a",
                     color = Color(0xFFFF9800),
                     onClick = { onNavigate(AppDestinations.IMAGES_JOB_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())) }
                 )
@@ -609,10 +609,16 @@ private fun JobActionMenu(
                 ActionCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Flight,
-                    title = "Planificación",
+                    title = "PlanificaciÃ³n",
                     subtitle = "Optimizar",
                     color = Color(0xFF3F51B5),
-                    onClick = { onNavigate(AppDestinations.WORK_PLAN_ROUTE.replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString()).replace("{${AppDestinations.LOTE_ID_ARG}}", "0")) }
+                    onClick = {
+                        onNavigate(
+                            AppDestinations.FIELD_SURVEY_ROUTE
+                                .replace("{${AppDestinations.JOB_ID_ARG}}", jobId.toString())
+                                .replace("{${AppDestinations.LOTE_ID_ARG}}", "0")
+                        )
+                    }
                 )
             }
         }
@@ -880,7 +886,7 @@ private fun ForecastSection(
     onDaySelected: (DailyWeather) -> Unit
 ) {
     Column {
-        Text("Pronóstico Climático", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+        Text("PronÃ³stico ClimÃ¡tico", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
@@ -940,13 +946,13 @@ private fun ForecastCard(
                 )
 
                 Text(
-                    text = "${weather.maxTemp.roundToInt()}°",
+                    text = "${weather.maxTemp.roundToInt()}Â°",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
-                    text = "${weather.minTemp.roundToInt()}°",
+                    text = "${weather.minTemp.roundToInt()}Â°",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.8f)
@@ -1045,7 +1051,7 @@ fun HourlyForecastDialog(
                     ) {
                         Column {
                             Text(
-                                text = "Pronóstico Horario",
+                                text = "PronÃ³stico Horario",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -1077,7 +1083,7 @@ fun HourlyForecastDialog(
                             
                             Spacer(modifier = Modifier.height(8.dp))
                             
-                            // Resumen del día
+                            // Resumen del dÃ­a
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1090,7 +1096,7 @@ fun HourlyForecastDialog(
                                 )
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = "${dayForecast.maxTemp.roundToInt()}°/${dayForecast.minTemp.roundToInt()}°",
+                                        text = "${dayForecast.maxTemp.roundToInt()}Â°/${dayForecast.minTemp.roundToInt()}Â°",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -1124,7 +1130,7 @@ fun HourlyForecastDialog(
     }
 }
 
-// --- INICIO DEL NUEVO DISEÑO ---
+// --- INICIO DEL NUEVO DISEÃ‘O ---
 
 @Composable
 private fun HourlyForecastItem(
@@ -1166,7 +1172,7 @@ private fun HourlyForecastItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${weather.temperature.roundToInt()}°",
+                    text = "${weather.temperature.roundToInt()}Â°",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (isHighTemp) 
@@ -1197,7 +1203,7 @@ private fun HourlyForecastItem(
                 )
             }
             
-            // Información meteorológica
+            // InformaciÃ³n meteorolÃ³gica
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1254,12 +1260,12 @@ fun EnhancedTemperatureBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "${minTemp.roundToInt()}°",
+                text = "${minTemp.roundToInt()}Â°",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "${maxTemp.roundToInt()}°",
+                text = "${maxTemp.roundToInt()}Â°",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1278,9 +1284,9 @@ fun EnhancedTemperatureBar(
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFF64B5F6), // Azul frío
+                                Color(0xFF64B5F6), // Azul frÃ­o
                                 Color(0xFF81C784), // Verde medio
-                                Color(0xFFFFB74D), // Naranja cálido
+                                Color(0xFFFFB74D), // Naranja cÃ¡lido
                                 Color(0xFFE57373)  // Rojo caliente
                             )
                         ),
@@ -1372,7 +1378,7 @@ fun TemperatureBar(
         val (textRef, barRef, pointRef) = createRefs()
 
         Text(
-            text = "${currentTemp.roundToInt()}°",
+            text = "${currentTemp.roundToInt()}Â°",
             fontWeight = FontWeight.Bold,
             modifier = Modifier.constrainAs(textRef) {
                 top.linkTo(parent.top)
@@ -1430,3 +1436,4 @@ private fun HourlyDetail(icon: ImageVector, text: String) {
         )
     }
 }
+
