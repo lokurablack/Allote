@@ -88,6 +88,42 @@
    - Mejora la consistencia y profesionalismo de los datos ingresados
    - Reduce pasos manuales para el usuario
 
+#### Visualización de distancias en perímetro del lote (2025-10-21)
+
+**Problema**: El usuario necesitaba conocer las distancias entre los puntos del perímetro del lote para planificar mejor las aplicaciones.
+
+**Solución implementada** (`FieldSurveyScreen.kt`):
+
+1. **Funciones de cálculo geodésico** (líneas 1862-1877):
+   - `calculateDistance()`: Calcula distancia precisa usando fórmula de Haversine
+   - `calculateMidpoint()`: Obtiene punto medio entre dos coordenadas
+   - `formatDistance()`: Formatea distancia en metros/kilómetros de forma legible
+
+2. **Marcadores visuales personalizados** (líneas 1893-1946):
+   - `createDistanceMarkerBitmap()`: Genera bitmap con texto de distancia
+   - Fondo azul Material (rgba 240, 33, 150, 243) con bordes redondeados
+   - Texto blanco en negrita de 13sp
+   - Borde blanco de 2dp para mejor contraste
+   - `rememberDistanceMarkerDescriptor()`: Composable para cachear iconos
+
+3. **Renderizado en mapa** (líneas 752-781):
+   - Itera sobre cada segmento del perímetro
+   - Calcula distancia entre puntos consecutivos
+   - Posiciona marcador en punto medio del segmento
+   - zIndex = 3f para aparecer sobre otros elementos
+   - flat = true para que el marcador se adapte al terreno
+
+4. **Características**:
+   - Formato inteligente: "125.3 m", "1.45 km", etc.
+   - Compatible con modo normal y pantalla completa (usa SurveyMap)
+   - No interfiere con otros marcadores (diferentes zIndex)
+   - Precisión geodésica usando radio terrestre (6,378,137 m)
+
+5. **Resultado**:
+   - El usuario ve inmediatamente las dimensiones del lote
+   - Facilita estimaciones de tiempo y recursos necesarios
+   - Información visible tanto en vista normal como expandida
+
 ---
 
 ## Objetivos del nuevo módulo
