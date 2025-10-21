@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
@@ -228,6 +229,8 @@ fun FieldSurveyScreen(
     }
 
     var isMapExpanded by rememberSaveable { mutableStateOf(false) }
+    var showBoundaryDistances by rememberSaveable { mutableStateOf(true) }
+
     LaunchedEffect(state.baseLayer) {
         if (state.baseLayer != BaseLayer.SATELLITE && isMapExpanded) {
             isMapExpanded = false
@@ -300,7 +303,32 @@ fun FieldSurveyScreen(
                 onExportPdf = { onExportPdf(context) }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Opciones de visualización
+            if (state.boundary.isNotEmpty() && state.baseLayer == BaseLayer.SATELLITE) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = showBoundaryDistances,
+                        onClick = { showBoundaryDistances = !showBoundaryDistances },
+                        label = { Text("Mostrar distancias", fontSize = 11.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (showBoundaryDistances) Icons.Default.Check else Icons.Default.Map,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Selector capa y herramientas básicas
             LayerAndToolSelector(
@@ -380,6 +408,7 @@ fun FieldSurveyScreen(
                             SurveyMap(
                                 state = state,
                                 activeSketchTool = state.activeSketchTool,
+                                showBoundaryDistances = showBoundaryDistances,
                                 onMapLocationPicked = onMapLocationPicked,
                                 onMapShapeFinished = onMapShapeFinished
                             )
@@ -675,6 +704,7 @@ private fun CategorySelector(
 private fun SurveyMap(
     state: FieldSurveyUiState,
     activeSketchTool: SketchTool,
+    showBoundaryDistances: Boolean,
     onMapLocationPicked: (Double, Double) -> Unit,
     onMapShapeFinished: (List<Pair<Double, Double>>, SketchTool) -> Unit
 ) {
@@ -750,34 +780,36 @@ private fun SurveyMap(
                 )
 
                 // Agregar marcadores de distancia en cada segmento del perímetro
-                val context = LocalContext.current
-                for (i in 0 until state.boundary.size) {
-                    val point1 = state.boundary[i]
-                    val point2 = state.boundary[(i + 1) % state.boundary.size]
+                if (showBoundaryDistances) {
+                    val context = LocalContext.current
+                    for (i in 0 until state.boundary.size) {
+                        val point1 = state.boundary[i]
+                        val point2 = state.boundary[(i + 1) % state.boundary.size]
 
-                    // Calcular distancia entre puntos consecutivos
-                    val distance = calculateDistance(
-                        point1.latitude, point1.longitude,
-                        point2.latitude, point2.longitude
-                    )
+                        // Calcular distancia entre puntos consecutivos
+                        val distance = calculateDistance(
+                            point1.latitude, point1.longitude,
+                            point2.latitude, point2.longitude
+                        )
 
-                    // Calcular punto medio del segmento
-                    val midpoint = calculateMidpoint(
-                        point1.latitude, point1.longitude,
-                        point2.latitude, point2.longitude
-                    )
+                        // Calcular punto medio del segmento
+                        val midpoint = calculateMidpoint(
+                            point1.latitude, point1.longitude,
+                            point2.latitude, point2.longitude
+                        )
 
-                    // Crear marcador con la distancia
-                    val distanceText = formatDistance(distance)
-                    val markerIcon = rememberDistanceMarkerDescriptor(context, distanceText)
+                        // Crear marcador con la distancia
+                        val distanceText = formatDistance(distance)
+                        val markerIcon = rememberDistanceMarkerDescriptor(context, distanceText)
 
-                    Marker(
-                        state = MarkerState(position = LatLng(midpoint.first, midpoint.second)),
-                        icon = markerIcon,
-                        anchor = Offset(0.5f, 0.5f),
-                        zIndex = 3f,
-                        flat = true
-                    )
+                        Marker(
+                            state = MarkerState(position = LatLng(midpoint.first, midpoint.second)),
+                            icon = markerIcon,
+                            anchor = Offset(0.5f, 0.5f),
+                            zIndex = 3f,
+                            flat = true
+                        )
+                    }
                 }
             }
             state.mapAnnotations.forEach { annotation ->
@@ -1272,6 +1304,7 @@ private fun ExpandedMapDialog(
     onSketchToolSelected: (SketchTool) -> Unit
 ) {
     var isControlsExpanded by rememberSaveable { mutableStateOf(true) }
+    var showBoundaryDistances by rememberSaveable { mutableStateOf(true) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1285,6 +1318,7 @@ private fun ExpandedMapDialog(
                 SurveyMap(
                     state = state,
                     activeSketchTool = state.activeSketchTool,
+                    showBoundaryDistances = showBoundaryDistances,
                     onMapLocationPicked = onMapLocationPicked,
                     onMapShapeFinished = onMapShapeFinished
                 )
@@ -1342,6 +1376,24 @@ private fun ExpandedMapDialog(
                                 activeCategoryId = state.activeCategoryId,
                                 onCategorySelected = onCategorySelected
                             )
+
+                            // Control de visibilidad de distancias
+                            if (state.boundary.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                FilterChip(
+                                    selected = showBoundaryDistances,
+                                    onClick = { showBoundaryDistances = !showBoundaryDistances },
+                                    label = { Text("Distancias", fontSize = 11.sp) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (showBoundaryDistances) Icons.Default.Check else Icons.Default.Map,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                )
+                            }
+
                             if (state.baseLayer == BaseLayer.SATELLITE && state.activeTool == SurveyTool.DRAW) {
                                 Spacer(modifier = Modifier.height(10.dp))
                                 SketchToolSelector(
