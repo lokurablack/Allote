@@ -63,6 +63,7 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -295,34 +296,31 @@ fun FieldSurveyScreen(
         floatingActionButton = {
             // FAB contextual: Mostrar solo en modo mapa con categoría seleccionada
             if (state.baseLayer == BaseLayer.SATELLITE && state.activeCategoryId != null && !isMapExpanded) {
-                FloatingActionButton(
-                    onClick = {
-                        if (state.activeTool == SurveyTool.DRAW) {
-                            // Si ya está en modo dibujo, volver a ADD_MARKER
-                            onSelectTool(SurveyTool.ADD_MARKER)
-                        } else {
-                            // Activar modo dibujo
-                            onSelectTool(SurveyTool.DRAW)
-                        }
-                    },
-                    containerColor = if (state.activeTool == SurveyTool.DRAW) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.primary
+                if (state.activeTool == SurveyTool.DRAW) {
+                    // ExtendedFAB cuando está dibujando (más visible)
+                    ExtendedFloatingActionButton(
+                        onClick = { onSelectTool(SurveyTool.ADD_MARKER) },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Finalizar dibujo"
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Finalizar", fontWeight = FontWeight.Bold)
                     }
-                ) {
-                    Icon(
-                        imageVector = if (state.activeTool == SurveyTool.DRAW) {
-                            Icons.Default.Check
-                        } else {
-                            Icons.Default.Edit
-                        },
-                        contentDescription = if (state.activeTool == SurveyTool.DRAW) {
-                            "Finalizar dibujo"
-                        } else {
-                            "Dibujar en mapa"
-                        }
-                    )
+                } else {
+                    // FAB normal para activar dibujo
+                    FloatingActionButton(
+                        onClick = { onSelectTool(SurveyTool.DRAW) },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Dibujar en mapa"
+                        )
+                    }
                 }
             }
         }
@@ -1030,17 +1028,32 @@ private fun SurveyMap(
 
             Surface(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(12.dp),
-                tonalElevation = 4.dp,
-                shadowElevation = 2.dp
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                tonalElevation = 8.dp,
+                shadowElevation = 4.dp,
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Text(
-                    text = instructionText,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = instructionText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     }
