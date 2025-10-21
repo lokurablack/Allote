@@ -232,6 +232,7 @@ fun FieldSurveyScreen(
 
     var isMapExpanded by rememberSaveable { mutableStateOf(false) }
     var showBoundaryDistances by rememberSaveable { mutableStateOf(true) }
+    var isControlsPanelExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Lógica automática: cambiar herramienta basándose en categoría seleccionada
     LaunchedEffect(state.activeCategoryId, state.baseLayer) {
@@ -345,68 +346,105 @@ fun FieldSurveyScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Acciones rápidas
-            QuickActionsRow(
-                isExporting = state.isExporting,
-                onShowBoundary = { onShowBoundaryDialog(true) },
-                onShowNewCategory = { onShowCustomCategoryDialog(true) },
-                onExportPdf = { onExportPdf(context) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Opciones de visualización
-            if (state.boundary.isNotEmpty() && state.baseLayer == BaseLayer.SATELLITE) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilterChip(
-                        selected = showBoundaryDistances,
-                        onClick = { showBoundaryDistances = !showBoundaryDistances },
-                        label = { Text("Mostrar distancias", fontSize = 11.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (showBoundaryDistances) Icons.Default.Check else Icons.Default.Map,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+            // Panel de controles compacto y colapsable
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // Header: Vista + Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Selector de vista compacto
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = state.baseLayer == BaseLayer.SATELLITE,
+                                onClick = { onBaseLayerChanged(BaseLayer.SATELLITE) },
+                                label = { Text("🗺️ Mapa", fontSize = 13.sp) },
+                                modifier = Modifier.height(40.dp)
+                            )
+                            FilterChip(
+                                selected = state.baseLayer == BaseLayer.SKETCH,
+                                onClick = { onBaseLayerChanged(BaseLayer.SKETCH) },
+                                label = { Text("📝 Croquis", fontSize = 13.sp) },
+                                modifier = Modifier.height(40.dp)
                             )
                         }
+
+                        // Toggle de expansión
+                        IconButton(
+                            onClick = { isControlsPanelExpanded = !isControlsPanelExpanded },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isControlsPanelExpanded)
+                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                                else
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = if (isControlsPanelExpanded) "Ocultar opciones" else "Mostrar opciones"
+                            )
+                        }
+                    }
+
+                    // Panel expandido
+                    if (isControlsPanelExpanded) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Acciones rápidas
+                        QuickActionsRow(
+                            isExporting = state.isExporting,
+                            onShowBoundary = { onShowBoundaryDialog(true) },
+                            onShowNewCategory = { onShowCustomCategoryDialog(true) },
+                            onExportPdf = { onExportPdf(context) }
+                        )
+
+                        // Opciones de visualización de distancias
+                        if (state.boundary.isNotEmpty() && state.baseLayer == BaseLayer.SATELLITE) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            FilterChip(
+                                selected = showBoundaryDistances,
+                                onClick = { showBoundaryDistances = !showBoundaryDistances },
+                                label = { Text("Mostrar distancias", fontSize = 12.sp) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (showBoundaryDistances) Icons.Default.Check else Icons.Default.Map,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                modifier = Modifier.height(40.dp)
+                            )
+                        }
+                    }
+
+                    // Categorías (siempre visibles)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    CategorySelector(
+                        categories = state.categories,
+                        activeCategoryId = state.activeCategoryId,
+                        onCategorySelected = onCategorySelected
                     )
+
+                    if (state.activeCategoryId == null &&
+                        (state.baseLayer == BaseLayer.SKETCH || state.activeTool != SurveyTool.SELECT)
+                    ) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "💡 Selecciona una categoría para comenzar",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Selector de vista
-            LayerAndToolSelector(
-                baseLayer = state.baseLayer,
-                onLayerChanged = onBaseLayerChanged
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Categorías
-            CategorySelector(
-                categories = state.categories,
-                activeCategoryId = state.activeCategoryId,
-                onCategorySelected = onCategorySelected
-            )
-
-            if (state.activeCategoryId == null &&
-                (state.baseLayer == BaseLayer.SKETCH || state.activeTool != SurveyTool.SELECT)
-            ) {
-                Text(
-                    text = "Selecciona una categoria para habilitar las herramientas de dibujo.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Herramientas de dibujo
             val showSketchTools = state.baseLayer == BaseLayer.SKETCH ||
@@ -695,33 +733,75 @@ private fun CategorySelector(
     activeCategoryId: String?,
     onCategorySelected: (String) -> Unit
 ) {
+    // Mostrar solo las primeras 4 categorías + un menú "Más" para el resto
+    val visibleCategories = categories.take(4)
+    val hiddenCategories = categories.drop(4)
+    var showMoreMenu by remember { mutableStateOf(false) }
+
     Column {
-        Text(
-            text = "Categorías",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(categories, key = { it.id }) { category ->
+            items(visibleCategories, key = { it.id }) { category ->
                 val selected = activeCategoryId == category.id
                 FilterChip(
                     selected = selected,
                     onClick = { onCategorySelected(category.id) },
-                    label = { Text(category.label, fontSize = 11.sp, maxLines = 1) },
+                    label = { Text(category.label, fontSize = 12.sp, maxLines = 1) },
                     leadingIcon = {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(12.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(category.color)
                         )
-                    }
+                    },
+                    modifier = Modifier.height(44.dp)
                 )
+            }
+
+            // Botón "Más" si hay categorías ocultas
+            if (hiddenCategories.isNotEmpty()) {
+                item {
+                    Box {
+                        FilterChip(
+                            selected = hiddenCategories.any { it.id == activeCategoryId },
+                            onClick = { showMoreMenu = !showMoreMenu },
+                            label = { Text("Más ⋮", fontSize = 12.sp) },
+                            modifier = Modifier.height(44.dp)
+                        )
+
+                        // Menú dropdown
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false }
+                        ) {
+                            hiddenCategories.forEach { category ->
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(category.color)
+                                            )
+                                            Text(category.label, fontSize = 13.sp)
+                                        }
+                                    },
+                                    onClick = {
+                                        onCategorySelected(category.id)
+                                        showMoreMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
