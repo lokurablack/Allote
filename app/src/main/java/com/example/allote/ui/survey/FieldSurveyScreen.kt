@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
@@ -46,6 +47,8 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -98,6 +101,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+//import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -557,11 +562,16 @@ private fun LayerAndToolSelector(
                 label = { Text("Croquis", fontSize = 12.sp) },
                 leadingIcon = { Icon(Icons.Default.Photo, null, Modifier.size(14.dp)) }
             )
-            Spacer(modifier = Modifier.weight(1f))
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             FilterChip(
                 selected = activeTool == SurveyTool.SELECT,
                 onClick = { onToolSelected(SurveyTool.SELECT) },
-                label = { Text("Nav", fontSize = 11.sp) }
+                label = { Text("Navegar", fontSize = 11.sp) }
             )
             FilterChip(
                 selected = activeTool == SurveyTool.ADD_MARKER,
@@ -759,6 +769,19 @@ private fun SurveyMap(
                                 color = annotation.category.color,
                                 width = 8f
                             )
+                            // Agregar marcador en el centro de la línea
+                            if (annotation.title?.isNotBlank() == true || annotation.description?.isNotBlank() == true) {
+                                val centerPoint = calculatePolylineCenter(geometry.points)
+                                val markerDescriptor = rememberMarkerDescriptor(annotation)
+                                Marker(
+                                    state = MarkerState(position = LatLng(centerPoint.first, centerPoint.second)),
+                                    title = annotation.title ?: annotation.category.label,
+                                    snippet = annotation.description,
+                                    icon = markerDescriptor,
+                                    anchor = Offset(0.5f, 1f),
+                                    zIndex = 2f
+                                )
+                            }
                         }
                         is SurveyGeometry.MapPolygon -> {
                             Polygon(
@@ -766,6 +789,19 @@ private fun SurveyMap(
                                 strokeColor = annotation.category.color,
                                 fillColor = annotation.category.color.copy(alpha = 0.2f)
                             )
+                            // Agregar marcador en el centro del polígono
+                            if (annotation.title?.isNotBlank() == true || annotation.description?.isNotBlank() == true) {
+                                val centerPoint = calculatePolygonCenter(geometry.points)
+                                val markerDescriptor = rememberMarkerDescriptor(annotation)
+                                Marker(
+                                    state = MarkerState(position = LatLng(centerPoint.first, centerPoint.second)),
+                                    title = annotation.title ?: annotation.category.label,
+                                    snippet = annotation.description,
+                                    icon = markerDescriptor,
+                                    anchor = Offset(0.5f, 1f),
+                                    zIndex = 2f
+                                )
+                            }
                         }
                         else -> Unit
                     }
@@ -1032,6 +1068,25 @@ private fun drawInstructionForTool(tool: SketchTool): String = when (tool) {
 private const val EARTH_RADIUS_METERS = 6_378_137.0
 private const val MIN_DRAW_DISTANCE_METERS = 1.5
 
+private fun calculatePolylineCenter(points: List<Pair<Double, Double>>): Pair<Double, Double> {
+    if (points.isEmpty()) return 0.0 to 0.0
+    if (points.size == 1) return points.first()
+
+    // Para líneas, usar el punto medio de la línea
+    val midIndex = points.size / 2
+    return points[midIndex]
+}
+
+private fun calculatePolygonCenter(points: List<Pair<Double, Double>>): Pair<Double, Double> {
+    if (points.isEmpty()) return 0.0 to 0.0
+    if (points.size == 1) return points.first()
+
+    // Calcular el centroide del polígono (promedio de todos los puntos)
+    val lat = points.map { it.first }.average()
+    val lng = points.map { it.second }.average()
+    return lat to lng
+}
+
 @Composable
 private fun rememberMarkerDescriptor(annotation: SurveyAnnotationItem): BitmapDescriptor {
     val context = LocalContext.current
@@ -1185,6 +1240,8 @@ private fun ExpandedMapDialog(
     onToolSelected: (SurveyTool) -> Unit,
     onSketchToolSelected: (SketchTool) -> Unit
 ) {
+    var isControlsExpanded by rememberSaveable { mutableStateOf(true) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1200,40 +1257,78 @@ private fun ExpandedMapDialog(
                     onMapLocationPicked = onMapLocationPicked,
                     onMapShapeFinished = onMapShapeFinished
                 )
-                Column(
+                Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(16.dp)
+                        .width(280.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    tonalElevation = 4.dp,
+                    shadowElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 ) {
-                    LayerAndToolSelector(
-                        baseLayer = state.baseLayer,
-                        activeTool = state.activeTool,
-                        canDrawOnMap = state.activeCategoryId != null,
-                        onLayerChanged = {},
-                        onToolSelected = onToolSelected
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    CategorySelector(
-                        categories = state.categories,
-                        activeCategoryId = state.activeCategoryId,
-                        onCategorySelected = onCategorySelected
-                    )
-                    if (state.baseLayer == BaseLayer.SATELLITE && state.activeTool == SurveyTool.DRAW) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        SketchToolSelector(
-                            selectedTool = state.activeSketchTool,
-                            availableTools = listOf(
-                                SketchTool.FREEHAND,
-                                SketchTool.LINE,
-                                SketchTool.ARROW,
-                                SketchTool.RECTANGLE,
-                                SketchTool.CIRCLE
-                            ),
-                            onToolSelected = onSketchToolSelected,
-                            showUndo = false,
-                            canUndo = false,
-                            onUndo = {}
-                        )
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Controles",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                            IconButton(
+                                onClick = { isControlsExpanded = !isControlsExpanded },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isControlsExpanded)
+                                        Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                                    else
+                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = if (isControlsExpanded) "Contraer" else "Expandir",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (isControlsExpanded) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LayerAndToolSelector(
+                                baseLayer = state.baseLayer,
+                                activeTool = state.activeTool,
+                                canDrawOnMap = state.activeCategoryId != null,
+                                onLayerChanged = {},
+                                onToolSelected = onToolSelected
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            CategorySelector(
+                                categories = state.categories,
+                                activeCategoryId = state.activeCategoryId,
+                                onCategorySelected = onCategorySelected
+                            )
+                            if (state.baseLayer == BaseLayer.SATELLITE && state.activeTool == SurveyTool.DRAW) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                SketchToolSelector(
+                                    selectedTool = state.activeSketchTool,
+                                    availableTools = listOf(
+                                        SketchTool.FREEHAND,
+                                        SketchTool.LINE,
+                                        SketchTool.ARROW,
+                                        SketchTool.RECTANGLE,
+                                        SketchTool.CIRCLE
+                                    ),
+                                    onToolSelected = onSketchToolSelected,
+                                    showUndo = false,
+                                    canUndo = false,
+                                    onUndo = {}
+                                )
+                            }
+                        }
                     }
                 }
                 FilledIconButton(
@@ -1630,14 +1725,16 @@ private fun AnnotationDialog(
                     onValueChange = { title = it },
                     label = { Text("Título", fontSize = 12.sp) },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Detalle", fontSize = 12.sp) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                    maxLines = 3
+                    maxLines = 3,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = isCritical, onCheckedChange = { isCritical = it })
@@ -1680,7 +1777,8 @@ private fun CustomCategoryDialog(
                     value = label,
                     onValueChange = { label = it },
                     label = { Text("Nombre", fontSize = 12.sp) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
                 )
                 Text("Color", fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

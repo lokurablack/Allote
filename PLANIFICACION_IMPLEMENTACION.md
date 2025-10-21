@@ -13,6 +13,81 @@
 - Cada anotacion puntual ahora muestra un pin con color y glifo segun la categoria, e incluye el titulo visible para identificarla sin tocar el marcador.
 - Ahora se pueden dibujar trazos, lineas, rectangulos, circulos y flechas directamente sobre el mapa satelital con la herramienta 'Dibujo', reutilizando las mismas herramientas del croquis.
 
+### Mejoras de UX en pantalla completa (2025-10-18)
+
+#### Panel de controles colapsable
+
+**Problema**: El panel de controles en modo pantalla completa ocupaba demasiado espacio visual, dificultando la visualización completa del mapa.
+
+**Solución implementada** (`FieldSurveyScreen.kt:1240-1344`):
+
+1. **Estado de expansión persistente**:
+   - Se agregó `isControlsExpanded` con `rememberSaveable` para mantener el estado entre recomposiciones (línea 1240)
+   - Por defecto el panel se inicia expandido (`true`)
+
+2. **Header con toggle**:
+   - Nuevo Row con texto "Controles" y botón IconButton (líneas 1270-1294)
+   - Iconos dinámicos según estado:
+     - `Icons.AutoMirrored.Filled.KeyboardArrowLeft` cuando está expandido (colapsar)
+     - `Icons.AutoMirrored.Filled.KeyboardArrowRight` cuando está colapsado (expandir)
+
+3. **Renderizado condicional**:
+   - Los controles (LayerAndToolSelector, CategorySelector, SketchToolSelector) solo se muestran cuando `isControlsExpanded == true` (líneas 1296-1328)
+   - El header con el botón de toggle permanece siempre visible
+
+4. **Dimensionamiento del panel**:
+   - Ancho fijo de 280dp para evitar superposición con el botón de cerrar pantalla completa (línea 1261)
+   - Posicionado en esquina superior izquierda con padding de 16dp
+   - Background semi-transparente (alpha 0.95f) con elevación para contraste sobre el mapa
+
+#### Etiquetas descriptivas en geometrías
+
+**Problema**: Las líneas, flechas, rectángulos y círculos dibujados sobre el mapa no mostraban texto descriptivo, solo los puntos tenían marcadores con título.
+
+**Solución implementada** (`FieldSurveyScreen.kt:769-801`):
+
+1. **Marcadores en polilíneas** (líneas 769-781):
+   - Cuando una polilínea (LINE o ARROW) tiene título o descripción, se agrega un marcador en el punto medio
+   - Función helper `calculatePolylineCenter()` obtiene el punto medio de la línea (líneas 1068-1075)
+
+2. **Marcadores en polígonos** (líneas 789-801):
+   - Cuando un polígono (RECTANGLE o CIRCLE) tiene título o descripción, se agrega un marcador en el centroide
+   - Función helper `calculatePolygonCenter()` calcula el promedio de coordenadas (líneas 1077-1085)
+
+3. **Características del marcador**:
+   - Reutiliza la función `rememberMarkerDescriptor()` para generar el bitmap personalizado
+   - zIndex = 2f para que aparezca sobre la geometría (zIndex = 1f para las líneas/polígonos)
+   - Mismo diseño visual que los marcadores de punto (pin con color de categoría, glifo y etiqueta con título)
+
+#### Capitalización automática en campos de texto
+
+**Problema**: Los campos de texto no capitalizaban automáticamente la primera letra, requiriendo intervención manual del usuario.
+
+**Solución implementada**:
+
+1. **Imports necesarios** (`FieldSurveyScreen.kt`):
+   - `androidx.compose.foundation.text.KeyboardOptions` (línea 39)
+   - `androidx.compose.ui.text.input.KeyboardCapitalization` (línea 103)
+
+2. **Campos configurados**:
+   - **AnnotationDialog** - Campo "Título" (línea 1728):
+     ```kotlin
+     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+     ```
+   - **AnnotationDialog** - Campo "Detalle" (línea 1736):
+     ```kotlin
+     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+     ```
+   - **CustomCategoryDialog** - Campo "Nombre" (línea 1780):
+     ```kotlin
+     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+     ```
+
+3. **Comportamiento**:
+   - Al abrir cualquier campo de texto, el teclado automáticamente pone la primera letra de cada oración en mayúscula
+   - Mejora la consistencia y profesionalismo de los datos ingresados
+   - Reduce pasos manuales para el usuario
+
 ---
 
 ## Objetivos del nuevo módulo

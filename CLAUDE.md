@@ -142,3 +142,49 @@ Planificación pre-trabajo considerando:
 ## Generación de PDF (Feature Futura)
 
 Informe completo del trabajo para entregar al cliente post-aplicación.
+
+---
+
+## 9. **Relevamiento de Campo** (`FieldSurveyScreen`) - NUEVO (Oct 2025)
+
+Módulo de relevamiento digital que reemplaza el proceso manual de croquis en papel.
+
+### Funcionalidades principales
+
+- **Doble modo de trabajo**: Mapa satelital (Google Maps) o croquis libre
+- **Categorías de anotaciones**: Accesos, Reabastecimiento, Zonas prohibidas, Obstáculos, Vecinos, Peligros, Observaciones (+ personalizadas)
+- **Herramientas de dibujo**:
+  - En mapa: puntos (tap), líneas, flechas, rectángulos, círculos
+  - En croquis: trazo libre, línea, flecha, rectángulo, círculo + pan/zoom
+- **Adjuntos multimedia**: Cámara y galería para agregar fotos a anotaciones
+- **Marcadores personalizados**: Pin con color de categoría, glifo identificador y etiqueta de título
+- **Exportación PDF**: Informe con mapa, anotaciones y datos críticos
+- **Modo pantalla completa**: Visualización expandida del mapa con controles colapsables
+
+### Mejoras recientes (18/10/2025)
+
+1. **Panel de controles colapsable en pantalla completa**:
+   - Botón toggle con iconos de flecha para expandir/colapsar
+   - Ancho fijo de 280dp para evitar superposición con botón cerrar
+   - Estado persistente entre recomposiciones
+
+2. **Etiquetas en geometrías**:
+   - Marcadores con título/descripción en centro de líneas, flechas, rectángulos y círculos
+   - Funciones helper: `calculatePolylineCenter()` y `calculatePolygonCenter()`
+   - Mismo diseño visual que marcadores de punto
+
+3. **Capitalización automática**:
+   - Todos los campos de texto (Título, Detalle, Nombre categoría) capitalizan primera letra
+   - Configuración: `KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)`
+
+### Archivos clave
+
+- `FieldSurveyScreen.kt`: UI principal con mapa y croquis
+- `FieldSurveyViewModel.kt`: Lógica de estado y eventos
+- `FieldSurveyRepository.kt`: Acceso a datos (Room)
+- `FieldSurveyExporter.kt`: Generación de PDF
+- Entidades: `FieldSurvey`, `SurveyAnnotation`, `AnnotationMedia`
+
+### Referencias
+
+Ver `PLANIFICACION_IMPLEMENTACION.md` para detalles completos de arquitectura y migraciones.
