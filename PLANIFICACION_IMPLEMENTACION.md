@@ -124,6 +124,40 @@
    - Facilita estimaciones de tiempo y recursos necesarios
    - Información visible tanto en vista normal como expandida
 
+#### Control de visibilidad de distancias (2025-10-21)
+
+**Necesidad**: Permitir al usuario ocultar los marcadores de distancia para reducir saturación visual cuando no son necesarios.
+
+**Solución implementada** (`FieldSurveyScreen.kt`):
+
+1. **Estado persistente** (línea 231):
+   - `showBoundaryDistances` con `rememberSaveable` (valor por defecto: `true`)
+   - Persiste durante la sesión de la pantalla
+   - Estados independientes en modo normal y pantalla completa
+
+2. **Control en vista normal** (líneas 308-328):
+   - `FilterChip` "Mostrar distancias"
+   - Solo visible cuando: `state.boundary.isNotEmpty() && state.baseLayer == BaseLayer.SATELLITE`
+   - Aparece entre QuickActionsRow y LayerAndToolSelector
+   - Icono dinámico: Check (activado) / Map (desactivado)
+
+3. **Control en pantalla completa** (líneas 1307, 1381-1395):
+   - Estado local independiente en `ExpandedMapDialog`
+   - `FilterChip` "Distancias" en panel de controles colapsable
+   - Mismo comportamiento condicional (solo con perímetro definido)
+   - Permite configuración diferente entre modos
+
+4. **Renderizado condicional** (línea 782):
+   - `if (showBoundaryDistances) { ... }` envuelve el loop de marcadores
+   - Parámetro `showBoundaryDistances` agregado a función `SurveyMap`
+   - Todas las llamadas a `SurveyMap` actualizadas (líneas 411, 1321)
+
+5. **Beneficios UX**:
+   - Reduce clutter visual cuando no se necesitan mediciones
+   - Configuración rápida y accesible
+   - No requiere navegación a settings
+   - Preferencia recordada durante la sesión
+
 ---
 
 ## Objetivos del nuevo módulo
