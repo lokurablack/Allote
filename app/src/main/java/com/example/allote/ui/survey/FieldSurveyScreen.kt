@@ -233,6 +233,7 @@ fun FieldSurveyScreen(
     var isMapExpanded by rememberSaveable { mutableStateOf(false) }
     var showBoundaryDistances by rememberSaveable { mutableStateOf(true) }
     var isControlsPanelExpanded by rememberSaveable { mutableStateOf(false) }
+    var photoLightboxUri by remember { mutableStateOf<String?>(null) }
 
     // Lógica automática: cambiar herramienta basándose en categoría seleccionada
     LaunchedEffect(state.activeCategoryId, state.baseLayer) {
@@ -535,7 +536,8 @@ fun FieldSurveyScreen(
                     pendingMediaAnnotationId = annotationId
                     showMediaPicker = true
                 },
-                onRemoveMedia = onRemoveMedia
+                onRemoveMedia = onRemoveMedia,
+                onPhotoClick = { uri -> photoLightboxUri = uri }
             )
         }
     }
@@ -599,6 +601,14 @@ fun FieldSurveyScreen(
             onGallery = {
                 galleryLauncher.launch("image/*")
             }
+        )
+    }
+
+    // Lightbox para ver fotos ampliadas
+    photoLightboxUri?.let { uri ->
+        PhotoLightbox(
+            uri = uri,
+            onDismiss = { photoLightboxUri = null }
         )
     }
 }
@@ -1733,37 +1743,67 @@ private fun offsetToNormalized(offset: Offset, size: Size): Pair<Float, Float> {
     return x to y
 }
 
+enum class AnnotationListSize(val dp: Int, val label: String) {
+    SMALL(100, "S"),
+    MEDIUM(180, "M"),
+    LARGE(280, "L")
+}
+
 @Composable
 private fun AnnotationList(
     annotations: List<SurveyAnnotationItem>,
     onDeleteAnnotation: (Int) -> Unit,
     onEditAnnotation: (Int) -> Unit,
     onAddMedia: (Int) -> Unit,
-    onRemoveMedia: (Int) -> Unit
+    onRemoveMedia: (Int) -> Unit,
+    onPhotoClick: (String) -> Unit
 ) {
+    var listSize by rememberSaveable { mutableStateOf(AnnotationListSize.MEDIUM) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            Text(
-                text = "Anotaciones (${annotations.size})",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            // Header con contador y botones de tamaño
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Anotaciones (${annotations.size})",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+
+                // Botones de tamaño
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AnnotationListSize.values().forEach { size ->
+                        FilterChip(
+                            selected = listSize == size,
+                            onClick = { listSize = size },
+                            label = { Text(size.label, fontSize = 11.sp) },
+                            modifier = Modifier.size(width = 36.dp, height = 32.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             if (annotations.isEmpty()) {
                 Text(
-                    text = "Selecciona categoría y agrega puntos o trazos.",
+                    text = "💡 Toca el mapa para agregar anotaciones",
                     style = MaterialTheme.typography.bodySmall,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.height(120.dp)
+                    modifier = Modifier.height(listSize.dp.dp)
                 ) {
                     items(annotations, key = { it.id }) { annotation ->
                         AnnotationRow(
@@ -1771,7 +1811,8 @@ private fun AnnotationList(
                             onDeleteAnnotation = onDeleteAnnotation,
                             onEditAnnotation = onEditAnnotation,
                             onAddMedia = onAddMedia,
-                            onRemoveMedia = onRemoveMedia
+                            onRemoveMedia = onRemoveMedia,
+                            onPhotoClick = onPhotoClick
                         )
                     }
                 }
@@ -1786,7 +1827,8 @@ private fun AnnotationRow(
     onDeleteAnnotation: (Int) -> Unit,
     onEditAnnotation: (Int) -> Unit,
     onAddMedia: (Int) -> Unit,
-    onRemoveMedia: (Int) -> Unit
+    onRemoveMedia: (Int) -> Unit,
+    onPhotoClick: (String) -> Unit
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1840,7 +1882,11 @@ private fun AnnotationRow(
                 Spacer(modifier = Modifier.height(4.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(annotation.media, key = { it.id }) { media ->
-                        MediaThumbnail(uri = media.uri, onRemove = { onRemoveMedia(media.id) })
+                        MediaThumbnail(
+                            uri = media.uri,
+                            onRemove = { onRemoveMedia(media.id) },
+                            onClick = { onPhotoClick(media.uri) }
+                        )
                     }
                 }
             }
@@ -1859,26 +1905,66 @@ private fun AnnotationRow(
 }
 
 @Composable
-private fun MediaThumbnail(uri: String, onRemove: () -> Unit) {
+private fun MediaThumbnail(uri: String, onRemove: () -> Unit, onClick: () -> Unit) {
     Surface(
         tonalElevation = 2.dp,
-        shape = RoundedCornerShape(6.dp),
-        modifier = Modifier.size(width = 60.dp, height = 45.dp)
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier
+            .size(width = 80.dp, height = 60.dp)
+            .clickable { onClick() }
     ) {
         Box {
             AsyncImage(
                 model = uri,
-                contentDescription = "Adjunto",
+                contentDescription = "Adjunto - Toca para ampliar",
                 modifier = Modifier.fillMaxSize()
             )
             FilledIconButton(
                 onClick = onRemove,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(2.dp)
-                    .size(18.dp)
+                    .padding(4.dp)
+                    .size(24.dp)
             ) {
-                Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(10.dp))
+                Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoLightbox(uri: String, onDismiss: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.95f))
+                .clickable { onDismiss() }
+        ) {
+            AsyncImage(
+                model = uri,
+                contentDescription = "Foto ampliada",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            )
+
+            // Botón cerrar
+            FilledIconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FullscreenExit,
+                    contentDescription = "Cerrar",
+                    tint = Color.White
+                )
             }
         }
     }
