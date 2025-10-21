@@ -748,6 +748,37 @@ private fun SurveyMap(
                     strokeColor = MaterialTheme.colorScheme.primary,
                     fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                 )
+
+                // Agregar marcadores de distancia en cada segmento del perímetro
+                val context = LocalContext.current
+                for (i in 0 until state.boundary.size) {
+                    val point1 = state.boundary[i]
+                    val point2 = state.boundary[(i + 1) % state.boundary.size]
+
+                    // Calcular distancia entre puntos consecutivos
+                    val distance = calculateDistance(
+                        point1.latitude, point1.longitude,
+                        point2.latitude, point2.longitude
+                    )
+
+                    // Calcular punto medio del segmento
+                    val midpoint = calculateMidpoint(
+                        point1.latitude, point1.longitude,
+                        point2.latitude, point2.longitude
+                    )
+
+                    // Crear marcador con la distancia
+                    val distanceText = formatDistance(distance)
+                    val markerIcon = rememberDistanceMarkerDescriptor(context, distanceText)
+
+                    Marker(
+                        state = MarkerState(position = LatLng(midpoint.first, midpoint.second)),
+                        icon = markerIcon,
+                        anchor = Offset(0.5f, 0.5f),
+                        zIndex = 3f,
+                        flat = true
+                    )
+                }
             }
             state.mapAnnotations.forEach { annotation ->
                 key(annotation.id) {
@@ -1854,4 +1885,93 @@ private fun createTempImageUri(context: Context): Uri {
         "${context.packageName}.fileprovider",
         imageFile
     )
+}
+
+/**
+ * Calcula la distancia en metros entre dos puntos geográficos usando la fórmula de Haversine
+ */
+private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val dLat = Math.toRadians(lat2 - lat1)
+    val dLon = Math.toRadians(lon2 - lon1)
+    val a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+            sin(dLon / 2) * sin(dLon / 2)
+    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return EARTH_RADIUS_METERS * c
+}
+
+/**
+ * Calcula el punto medio entre dos coordenadas geográficas
+ */
+private fun calculateMidpoint(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Pair<Double, Double> {
+    return ((lat1 + lat2) / 2.0) to ((lon1 + lon2) / 2.0)
+}
+
+/**
+ * Formatea la distancia en metros a un string legible
+ */
+private fun formatDistance(distanceMeters: Double): String {
+    return when {
+        distanceMeters >= 1000 -> String.format("%.2f km", distanceMeters / 1000)
+        distanceMeters >= 100 -> String.format("%.0f m", distanceMeters)
+        else -> String.format("%.1f m", distanceMeters)
+    }
+}
+
+/**
+ * Crea un bitmap simple con texto de distancia para usar como marcador
+ */
+private fun createDistanceMarkerBitmap(context: Context, distanceText: String): Bitmap {
+    val density = context.resources.displayMetrics.density
+    val padding = 8f * density
+
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.WHITE
+        textSize = 13f * density
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+
+    val textWidth = textPaint.measureText(distanceText)
+    val textMetrics = textPaint.fontMetrics
+    val textHeight = textMetrics.descent - textMetrics.ascent
+
+    val width = (textWidth + padding * 2).roundToInt().coerceAtLeast(1)
+    val height = (textHeight + padding * 2).roundToInt().coerceAtLeast(1)
+
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    bitmap.eraseColor(AndroidColor.TRANSPARENT)
+    val canvas = AndroidCanvas(bitmap)
+
+    // Fondo semi-transparente con bordes redondeados
+    val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(240, 33, 150, 243) // Azul Material
+        style = Paint.Style.FILL
+    }
+    val cornerRadius = 6f * density
+    val rect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+    canvas.drawRoundRect(rect, cornerRadius, cornerRadius, backgroundPaint)
+
+    // Borde blanco
+    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = 2f * density
+    }
+    canvas.drawRoundRect(rect, cornerRadius, cornerRadius, strokePaint)
+
+    // Texto
+    val textBaseline = height / 2f - (textMetrics.ascent + textMetrics.descent) / 2f
+    canvas.drawText(distanceText, width / 2f, textBaseline, textPaint)
+
+    return bitmap
+}
+
+@Composable
+private fun rememberDistanceMarkerDescriptor(context: Context, distanceText: String): BitmapDescriptor {
+    return remember(distanceText) {
+        BitmapDescriptorFactory.fromBitmap(
+            createDistanceMarkerBitmap(context, distanceText)
+        )
+    }
 }
