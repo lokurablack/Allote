@@ -63,12 +63,14 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -231,11 +233,25 @@ fun FieldSurveyScreen(
     var isMapExpanded by rememberSaveable { mutableStateOf(false) }
     var showBoundaryDistances by rememberSaveable { mutableStateOf(true) }
 
+    // Lógica automática: cambiar herramienta basándose en categoría seleccionada
+    LaunchedEffect(state.activeCategoryId, state.baseLayer) {
+        if (state.baseLayer == BaseLayer.SATELLITE) {
+            if (state.activeCategoryId != null && state.activeTool != SurveyTool.DRAW) {
+                // Si hay categoría y no estamos en modo dibujo, activar ADD_MARKER
+                onSelectTool(SurveyTool.ADD_MARKER)
+            } else if (state.activeCategoryId == null && state.activeTool != SurveyTool.SELECT) {
+                // Sin categoría, volver a modo navegación
+                onSelectTool(SurveyTool.SELECT)
+            }
+        }
+    }
+
     LaunchedEffect(state.baseLayer) {
         if (state.baseLayer != BaseLayer.SATELLITE && isMapExpanded) {
             isMapExpanded = false
         }
     }
+
     LaunchedEffect(state.baseLayer, state.activeTool, state.activeSketchTool) {
         if (
             state.baseLayer == BaseLayer.SATELLITE &&
@@ -273,7 +289,41 @@ fun FieldSurveyScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            // FAB contextual: Mostrar solo en modo mapa con categoría seleccionada
+            if (state.baseLayer == BaseLayer.SATELLITE && state.activeCategoryId != null && !isMapExpanded) {
+                FloatingActionButton(
+                    onClick = {
+                        if (state.activeTool == SurveyTool.DRAW) {
+                            // Si ya está en modo dibujo, volver a ADD_MARKER
+                            onSelectTool(SurveyTool.ADD_MARKER)
+                        } else {
+                            // Activar modo dibujo
+                            onSelectTool(SurveyTool.DRAW)
+                        }
+                    },
+                    containerColor = if (state.activeTool == SurveyTool.DRAW) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (state.activeTool == SurveyTool.DRAW) {
+                            Icons.Default.Check
+                        } else {
+                            Icons.Default.Edit
+                        },
+                        contentDescription = if (state.activeTool == SurveyTool.DRAW) {
+                            "Finalizar dibujo"
+                        } else {
+                            "Dibujar en mapa"
+                        }
+                    )
+                }
+            }
+        }
     ) { padding ->
         if (state.isLoading) {
             Box(
@@ -330,13 +380,10 @@ fun FieldSurveyScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Selector capa y herramientas básicas
+            // Selector de vista
             LayerAndToolSelector(
                 baseLayer = state.baseLayer,
-                activeTool = state.activeTool,
-                canDrawOnMap = state.activeCategoryId != null,
-                onLayerChanged = onBaseLayerChanged,
-                onToolSelected = onSelectTool
+                onLayerChanged = onBaseLayerChanged
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -562,57 +609,37 @@ private fun QuickActionsRow(
 @Composable
 private fun LayerAndToolSelector(
     baseLayer: BaseLayer,
-    activeTool: SurveyTool,
-    canDrawOnMap: Boolean,
-    onLayerChanged: (BaseLayer) -> Unit,
-    onToolSelected: (SurveyTool) -> Unit
+    onLayerChanged: (BaseLayer) -> Unit
 ) {
     Column {
         Text(
-            text = "Modo",
+            text = "Vista",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp
+            fontSize = 14.sp
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(
                 selected = baseLayer == BaseLayer.SATELLITE,
                 onClick = { onLayerChanged(BaseLayer.SATELLITE) },
-                label = { Text("Mapa", fontSize = 12.sp) },
-                leadingIcon = { Icon(Icons.Default.Map, null, Modifier.size(14.dp)) }
+                label = { Text("Mapa", fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Map, null, Modifier.size(16.dp)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
             )
             FilterChip(
                 selected = baseLayer == BaseLayer.SKETCH,
                 onClick = { onLayerChanged(BaseLayer.SKETCH) },
-                label = { Text("Croquis", fontSize = 12.sp) },
-                leadingIcon = { Icon(Icons.Default.Photo, null, Modifier.size(14.dp)) }
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            FilterChip(
-                selected = activeTool == SurveyTool.SELECT,
-                onClick = { onToolSelected(SurveyTool.SELECT) },
-                label = { Text("Navegar", fontSize = 11.sp) }
-            )
-            FilterChip(
-                selected = activeTool == SurveyTool.ADD_MARKER,
-                onClick = { onToolSelected(SurveyTool.ADD_MARKER) },
-                enabled = baseLayer == BaseLayer.SATELLITE,
-                label = { Text("Punto", fontSize = 11.sp) }
-            )
-            FilterChip(
-                selected = activeTool == SurveyTool.DRAW,
-                onClick = { onToolSelected(SurveyTool.DRAW) },
-                enabled = baseLayer == BaseLayer.SATELLITE && canDrawOnMap,
-                label = { Text("Dibujo", fontSize = 11.sp) }
+                label = { Text("Croquis", fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Photo, null, Modifier.size(16.dp)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
             )
         }
     }
@@ -1365,10 +1392,7 @@ private fun ExpandedMapDialog(
                             Spacer(modifier = Modifier.height(8.dp))
                             LayerAndToolSelector(
                                 baseLayer = state.baseLayer,
-                                activeTool = state.activeTool,
-                                canDrawOnMap = state.activeCategoryId != null,
-                                onLayerChanged = {},
-                                onToolSelected = onToolSelected
+                                onLayerChanged = {}
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             CategorySelector(
