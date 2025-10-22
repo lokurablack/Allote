@@ -164,7 +164,7 @@ fun FieldSurveyScreen(
     onAddMedia: (Int, Uri, String) -> Unit,
     onRemoveMedia: (Int) -> Unit,
     onCancelDraft: () -> Unit,
-    onSubmitAnnotation: (String, String, Boolean) -> Unit,
+    onSubmitAnnotation: (String, String, Boolean, Double) -> Unit,
     onSelectTool: (SurveyTool) -> Unit,
     onSketchToolSelected: (SketchTool) -> Unit,
     onUndoSketch: () -> Unit,
@@ -560,6 +560,7 @@ fun FieldSurveyScreen(
             initialTitle = state.pendingDraft?.initialTitle.orEmpty(),
             initialDescription = state.pendingDraft?.initialDescription.orEmpty(),
             initialIsCritical = state.pendingDraft?.initialIsCritical ?: false,
+            geometry = state.pendingDraft?.geometry,
             onCancel = onCancelDraft,
             onConfirm = onSubmitAnnotation
         )
@@ -968,8 +969,10 @@ private fun SurveyMap(
                             }
                         }
                         is SurveyGeometry.MapPolygon -> {
+                            // Aplicar rotación al polígono si tiene rotation != 0
+                            val polygonPoints = rotatePolygon(geometry.points, geometry.rotation)
                             Polygon(
-                                points = geometry.points.map { LatLng(it.first, it.second) },
+                                points = polygonPoints,
                                 strokeColor = annotation.category.color,
                                 fillColor = annotation.category.color.copy(alpha = 0.2f)
                             )
@@ -1289,6 +1292,38 @@ private fun calculatePolygonCenter(points: List<Pair<Double, Double>>): Pair<Dou
     val lat = points.map { it.first }.average()
     val lng = points.map { it.second }.average()
     return lat to lng
+}
+
+/**
+ * Rota un polígono alrededor de su centro
+ * @param points Los puntos del polígono (lat, lng)
+ * @param rotationDegrees Rotación en grados (0-360)
+ * @return Lista de puntos rotados
+ */
+private fun rotatePolygon(points: List<Pair<Double, Double>>, rotationDegrees: Double): List<LatLng> {
+    if (rotationDegrees == 0.0 || points.isEmpty()) {
+        return points.map { LatLng(it.first, it.second) }
+    }
+
+    val center = calculatePolygonCenter(points)
+    val centerLat = center.first
+    val centerLng = center.second
+    val angleRad = Math.toRadians(rotationDegrees)
+    val cosAngle = cos(angleRad)
+    val sinAngle = sin(angleRad)
+
+    return points.map { (lat, lng) ->
+        // Convertir a coordenadas relativas al centro
+        val dLat = lat - centerLat
+        val dLng = lng - centerLng
+
+        // Aplicar rotación
+        val rotatedLat = dLat * cosAngle - dLng * sinAngle
+        val rotatedLng = dLat * sinAngle + dLng * cosAngle
+
+        // Convertir de vuelta a coordenadas absolutas
+        LatLng(centerLat + rotatedLat, centerLng + rotatedLng)
+    }
 }
 
 @Composable
@@ -2039,12 +2074,18 @@ private fun AnnotationDialog(
     initialTitle: String,
     initialDescription: String,
     initialIsCritical: Boolean,
+    geometry: SurveyGeometry?,
     onCancel: () -> Unit,
-    onConfirm: (String, String, Boolean) -> Unit
+    onConfirm: (String, String, Boolean, Double) -> Unit
 ) {
     var title by remember { mutableStateOf(initialTitle) }
     var description by remember { mutableStateOf(initialDescription) }
     var isCritical by remember { mutableStateOf(initialIsCritical) }
+
+    // Extract rotation from geometry if it's a MapPolygon
+    val initialRotation = (geometry as? SurveyGeometry.MapPolygon)?.rotation ?: 0.0
+    var rotation by remember { mutableStateOf(initialRotation) }
+    val isPolygon = geometry is SurveyGeometry.MapPolygon
 
     AlertDialog(
         onDismissRequest = onCancel,
@@ -2074,10 +2115,28 @@ private fun AnnotationDialog(
                     Checkbox(checked = isCritical, onCheckedChange = { isCritical = it })
                     Text("Dato crítico", fontSize = 12.sp)
                 }
+
+                // Rotation slider for polygons (rectangles/circles)
+                if (isPolygon) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Rotación: ${rotation.toInt()}°",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Slider(
+                            value = rotation.toFloat(),
+                            onValueChange = { rotation = it.toDouble() },
+                            valueRange = 0f..360f,
+                            steps = 71,  // 5° increments
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(title, description, isCritical) }, enabled = !isSaving) {
+            Button(onClick = { onConfirm(title, description, isCritical, rotation) }, enabled = !isSaving) {
                 if (isSaving) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 } else {

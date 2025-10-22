@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 sealed class SurveyGeometry(val type: String) {
     data class MapPoint(val latitude: Double, val longitude: Double) : SurveyGeometry(TYPE_POINT)
-    data class MapPolygon(val points: List<Pair<Double, Double>>) : SurveyGeometry(TYPE_POLYGON)
+    data class MapPolygon(val points: List<Pair<Double, Double>>, val rotation: Double = 0.0) : SurveyGeometry(TYPE_POLYGON)
     data class MapPolyline(val points: List<Pair<Double, Double>>) : SurveyGeometry(TYPE_POLYLINE)
     data class SketchPath(val points: List<Pair<Float, Float>>) : SurveyGeometry(TYPE_SKETCH_PATH)
     data class SketchShape(val shape: String, val points: List<Pair<Float, Float>>) : SurveyGeometry(TYPE_SKETCH_SHAPE)
@@ -27,6 +27,9 @@ sealed class SurveyGeometry(val type: String) {
                         })
                     }
                 })
+                if (rotation != 0.0) {
+                    json.put("rotation", rotation)
+                }
             }
             is MapPolyline -> {
                 json.put("points", JSONArray().apply {
@@ -85,7 +88,8 @@ sealed class SurveyGeometry(val type: String) {
                             val point = pointsJson.getJSONObject(i)
                             points.add(point.getDouble("lat") to point.getDouble("lng"))
                         }
-                        MapPolygon(points)
+                        val rotation = json.optDouble("rotation", 0.0)
+                        MapPolygon(points, rotation)
                     }
                     TYPE_POLYLINE -> {
                         val pointsJson = json.getJSONArray("points")

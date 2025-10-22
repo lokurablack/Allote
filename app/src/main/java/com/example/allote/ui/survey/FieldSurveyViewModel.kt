@@ -240,11 +240,17 @@ class FieldSurveyViewModel @Inject constructor(
         }
     }
 
-    fun onSubmitAnnotation(title: String, description: String, isCritical: Boolean) {
+    fun onSubmitAnnotation(title: String, description: String, isCritical: Boolean, rotation: Double) {
         val draft = _uiState.value.pendingDraft ?: return
         val survey = currentSurvey ?: return
         val trimmedTitle = title.trim().ifBlank { null }
         val trimmedDescription = description.trim().ifBlank { null }
+
+        // Apply rotation to geometry if it's a MapPolygon
+        val finalGeometry = when (val geom = draft.geometry) {
+            is SurveyGeometry.MapPolygon -> geom.copy(rotation = rotation)
+            else -> geom
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
@@ -255,7 +261,8 @@ class FieldSurveyViewModel @Inject constructor(
                             existing.copy(
                                 title = trimmedTitle,
                                 description = trimmedDescription,
-                                isCritical = isCritical
+                                isCritical = isCritical,
+                                geometryPayload = finalGeometry.toJson()
                             )
                         )
                     }
@@ -268,7 +275,6 @@ class FieldSurveyViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    val geometry = draft.geometry
                     repository.addAnnotation(
                         SurveyAnnotation(
                             id = 0,
@@ -276,8 +282,8 @@ class FieldSurveyViewModel @Inject constructor(
                             category = draft.category.id,
                             title = trimmedTitle,
                             description = trimmedDescription,
-                            geometryType = geometry.type,
-                            geometryPayload = geometry.toJson(),
+                            geometryType = finalGeometry.type,
+                            geometryPayload = finalGeometry.toJson(),
                             colorHex = draft.category.colorHex,
                             icon = draft.category.icon,
                             createdAt = System.currentTimeMillis(),
