@@ -266,6 +266,32 @@ Gran refactorización de la interfaz de relevamiento enfocada en usabilidad en c
 - Targets táctiles: +40% (de 32dp a 44-48dp)
 - Tiempo para agregar anotación: -40% estimado
 
+### **Ajuste Post-Implementación: Rectángulo Simple vs Rotable** (2025-10-22)
+
+#### Problema identificado en testing real:
+El rectángulo rotable (que se orientaba según el arrastre) resultó:
+- ❌ Difícil de controlar con precisión
+- ❌ Imposible crear del tamaño exacto deseado
+- ❌ Difícil de posicionar exactamente donde se quiere
+- ❌ UX frustrante en uso real
+
+#### Decisión tomada:
+- ✅ Revertido a rectángulo **axis-aligned** (N-S, E-O)
+- ✅ Arrastre diagonal = esquinas opuestas
+- ✅ Tamaño y posición precisos y predecibles
+- ✅ Fácil de crear del tamaño exacto
+
+#### Lección aprendida:
+**Flexibilidad vs Precisión**: En herramientas de dibujo en campo, la precisión al crear es más importante que la flexibilidad de orientación. Mejor crear simple y preciso, que flexible pero incontrolable.
+
+#### Feature futura planificada:
+**Sistema de edición de geometrías** (post v1.0):
+- Seleccionar geometría existente (tap/long-press)
+- Handles visuales en esquinas y centro
+- Gestures para: mover, redimensionar, rotar
+- Patrón: **crear simple → editar con precisión**
+- Esto permitirá rectángulos rotados pero con control total
+
 ---
 
 ## Objetivos del nuevo módulo
