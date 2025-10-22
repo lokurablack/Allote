@@ -66,18 +66,9 @@ fun ProductDetailScreen(
             OutlinedTextField(value = principioActivo, onValueChange = { principioActivo = it }, label = { Text("Principio Activo") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(value = selectedTipo, onValueChange = {}, readOnly = true, label = { Text("Tipo / Aptitudes") }, modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(value = selectedFormulacion?.nombre ?: "", onValueChange = {}, readOnly = true, label = { Text("Formulación") }, modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(value = bandaToxicologica, onValueChange = {}, readOnly = true, label = { Text("Banda Toxicológica") }, modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(8.dp))
-
             if (product.applicationType == ApplicationType.PULVERIZACION.name) {
                 ExposedDropdownMenuBox(expanded = isTipoExpanded, onExpandedChange = { isTipoExpanded = it }, modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = selectedTipo, onValueChange = {}, readOnly = true, label = { Text("Tipo") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTipoExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    OutlinedTextField(value = selectedTipo, onValueChange = {}, readOnly = true, label = { Text("Tipo / Aptitudes") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTipoExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
                     ExposedDropdownMenu(expanded = isTipoExpanded, onDismissRequest = { isTipoExpanded = false }) {
                         tiposPulverizacion.forEach { tipo -> DropdownMenuItem(text = { Text(tipo) }, onClick = { selectedTipo = tipo; isTipoExpanded = false }) }
                     }
@@ -92,12 +83,31 @@ fun ProductDetailScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                ExposedDropdownMenuBox(expanded = isBandaExpanded, onExpandedChange = { isBandaExpanded = it }, modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = bandaToxicologica, onValueChange = {}, readOnly = true, label = { Text("Banda Toxicológica") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isBandaExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
-                    ExposedDropdownMenu(expanded = isBandaExpanded, onDismissRequest = { isBandaExpanded = false }) {
-                        bandasToxicologicas.forEach { banda ->
-                            DropdownMenuItem(text = { Text(banda) }, onClick = { bandaToxicologica = banda; isBandaExpanded = false })
-                        }
+            } else {
+                OutlinedTextField(
+                    value = selectedTipo,
+                    onValueChange = { selectedTipo = it },
+                    label = { Text("Tipo / Aptitudes") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (selectedFormulacion != null) {
+                    OutlinedTextField(
+                        value = selectedFormulacion?.nombre ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Formulación") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            ExposedDropdownMenuBox(expanded = isBandaExpanded, onExpandedChange = { isBandaExpanded = it }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(value = bandaToxicologica, onValueChange = {}, readOnly = true, label = { Text("Banda Toxicológica") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isBandaExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                ExposedDropdownMenu(expanded = isBandaExpanded, onDismissRequest = { isBandaExpanded = false }) {
+                    bandasToxicologicas.forEach { banda ->
+                        DropdownMenuItem(text = { Text(banda) }, onClick = { bandaToxicologica = banda; isBandaExpanded = false })
                     }
                 }
             }

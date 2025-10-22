@@ -41,6 +41,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.allote.data.Product
 import com.example.allote.data.Recipe
+import com.example.allote.ui.common.toxicBandColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -489,15 +490,7 @@ fun EnhancedProductoRecetaItemView(item: ProductoRecetaItem, onDelete: () -> Uni
         "Gr/ha", "Kg/ha" -> "Kgs"
         else -> "Litros"
     }
-    val bandaColorMap = remember {
-        mapOf(
-            "ia" to Color(0xFFD32F2F), "ib" to Color(0xFFD32F2F),
-            "la" to Color(0xFFD32F2F), "lb" to Color(0xFFD32F2F),
-            "ii" to Color(0xFFFBC02D), "iii" to Color(0xFF1976D2),
-            "iv" to Color(0xFF388E3C)
-        )
-    }
-    val color = bandaColorMap[item.bandaToxicologica?.trim()?.lowercase()] ?: Color.Gray
+    val bandaColor = remember(item.bandaToxicologica) { toxicBandColor(item.bandaToxicologica) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -513,7 +506,7 @@ fun EnhancedProductoRecetaItemView(item: ProductoRecetaItem, onDelete: () -> Uni
                 modifier = Modifier
                     .width(8.dp)
                     .height(80.dp)
-                    .background(color)
+                    .background(bandaColor)
             )
 
             // Contenido principal
@@ -941,13 +934,7 @@ fun SelectProductDialog(
 @Composable
 fun ProductSelectionItem(product: Product, onClick: () -> Unit) {
     val bandaColor = remember(product.bandaToxicologica) {
-        when (product.bandaToxicologica?.trim()?.uppercase()) {
-            "LA", "IA", "LB", "IB" -> Color(0xFFD32F2F)
-            "II" -> Color(0xFFFBC02D)
-            "III" -> Color(0xFF1976D2)
-            "IV" -> Color(0xFF388E3C)
-            else -> Color.Transparent
-        }
+        toxicBandColor(product.bandaToxicologica, defaultColor = Color.Transparent)
     }
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),

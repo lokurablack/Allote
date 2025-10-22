@@ -63,6 +63,7 @@ import androidx.compose.ui.window.Dialog
 import com.example.allote.data.ApplicationType
 import com.example.allote.data.Formulacion
 import com.example.allote.data.Product
+import com.example.allote.ui.common.toxicBandColor
 import com.example.allote.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,13 +231,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProductItem(product: Product, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val bandaColor = when (product.bandaToxicologica?.trim()?.uppercase()) {
-        "LA", "IA", "LB", "IB" -> Color(0xFFFF0000) // Rojo
-        "II" -> Color(0xFFFFD700)                   // Amarillo
-        "III" -> Color(0xFF0000FF)                  // Azul
-        "IV" -> Color(0xFF00AA00)                   // Verde
-        else -> Color.Transparent
-    }
+    val bandaColor = toxicBandColor(product.bandaToxicologica, defaultColor = Color.Transparent)
     Card(
         modifier = Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
