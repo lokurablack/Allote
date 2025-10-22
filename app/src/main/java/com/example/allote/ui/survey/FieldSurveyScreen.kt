@@ -1541,6 +1541,43 @@ private fun ExpandedMapDialog(
                         }
                     }
                 }
+
+                // FAB contextual para activar modo dibujo (igual que en pantalla normal)
+                if (state.activeCategoryId != null) {
+                    if (state.activeTool == SurveyTool.DRAW) {
+                        // ExtendedFAB cuando está dibujando
+                        ExtendedFloatingActionButton(
+                            onClick = { onToolSelected(SurveyTool.ADD_MARKER) },
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Finalizar dibujo"
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Finalizar", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        // FAB normal para activar dibujo
+                        FloatingActionButton(
+                            onClick = { onToolSelected(SurveyTool.DRAW) },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Dibujar en mapa"
+                            )
+                        }
+                    }
+                }
+
                 FilledIconButton(
                     onClick = onDismiss,
                     modifier = Modifier
