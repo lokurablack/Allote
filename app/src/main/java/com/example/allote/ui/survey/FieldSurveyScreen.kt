@@ -1177,47 +1177,21 @@ private fun buildRectanglePolygon(start: LatLng, end: LatLng): List<LatLng> {
     val (dx, dy) = meterDelta(start, end)
     if (abs(dx) < MIN_DRAW_DISTANCE_METERS || abs(dy) < MIN_DRAW_DISTANCE_METERS) return emptyList()
 
-    // Calcular el ángulo del arrastre
-    val angle = atan2(dy, dx)
+    // Rectángulo simple axis-aligned (alineado a norte-sur, este-oeste)
+    // Esto permite crear rectángulos precisos del tamaño deseado
+    // Nota: La edición de geometrías (mover, rotar, redimensionar) será una feature futura
+    val north = max(start.latitude, end.latitude)
+    val south = min(start.latitude, end.latitude)
+    val east = max(start.longitude, end.longitude)
+    val west = min(start.longitude, end.longitude)
 
-    // Calcular la distancia del arrastre
-    val distance = sqrt(dx * dx + dy * dy)
-
-    // Usar la mitad de la distancia como ancho, y mantener proporción para el alto
-    val width = distance
-    val height = distance * 0.5  // Relación 2:1 para el rectángulo
-
-    // Calcular los 4 puntos del rectángulo rotado
-    // El rectángulo se construye con start como punto de inicio y end como punto diagonal opuesto
-    val centerLat = (start.latitude + end.latitude) / 2
-    val centerLng = (start.longitude + end.longitude) / 2
-    val center = LatLng(centerLat, centerLng)
-
-    // Calcular los offsets para cada esquina (en metros)
-    val halfWidth = width / 2
-    val halfHeight = height / 2
-
-    // Los 4 puntos del rectángulo en coordenadas locales
-    val corners = listOf(
-        Pair(-halfWidth, -halfHeight),
-        Pair(halfWidth, -halfHeight),
-        Pair(halfWidth, halfHeight),
-        Pair(-halfWidth, halfHeight),
-        Pair(-halfWidth, -halfHeight) // Cerrar el polígono
+    return listOf(
+        LatLng(north, west),  // Esquina noroeste
+        LatLng(north, east),  // Esquina noreste
+        LatLng(south, east),  // Esquina sureste
+        LatLng(south, west),  // Esquina suroeste
+        LatLng(north, west)   // Cerrar el polígono
     )
-
-    // Rotar y trasladar cada punto
-    return corners.map { (x, y) ->
-        // Rotar el punto
-        val rotatedX = x * cos(angle) - y * sin(angle)
-        val rotatedY = x * sin(angle) + y * cos(angle)
-
-        // Convertir de metros a coordenadas geográficas
-        val latOffset = rotatedY / EARTH_RADIUS_METERS * (180.0 / PI)
-        val lngOffset = rotatedX / (EARTH_RADIUS_METERS * cos(Math.toRadians(center.latitude))) * (180.0 / PI)
-
-        LatLng(center.latitude + latOffset, center.longitude + lngOffset)
-    }
 }
 
 private fun buildCirclePolygon(center: LatLng, edge: LatLng, segments: Int = 36): List<LatLng> {
@@ -1290,7 +1264,7 @@ private fun drawInstructionForTool(tool: SketchTool): String = when (tool) {
     SketchTool.FREEHAND -> "Arrastra para dibujar un trazo libre sobre el mapa."
     SketchTool.LINE -> "Arrastra para definir una linea entre dos puntos."
     SketchTool.ARROW -> "Arrastra para indicar una direccion con una flecha."
-    SketchTool.RECTANGLE -> "Arrastra para crear un rectangulo. La direccion del arrastre define la rotacion."
+    SketchTool.RECTANGLE -> "Arrastra desde una esquina hasta la esquina opuesta para crear un rectangulo."
     SketchTool.CIRCLE -> "Arrastra para definir un circulo desde su centro."
     SketchTool.PAN -> "Selecciona otra herramienta de dibujo para comenzar."
 }
